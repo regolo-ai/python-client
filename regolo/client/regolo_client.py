@@ -59,10 +59,40 @@ class RegoloClient:
         """Gets all available models on regolo.ai."""
         return ModelsHandler.get_models()
 
+    @staticmethod
+    def process_vllm_stream(tokens):
+        output_text = ""
+        for token in tokens:
+            if token.startswith("▁"):  # SentencePiece-style tokenization
+                output_text += " " + token[1:]
+            else:
+                output_text += token  # Continuation of the previous word
+        return output_text.strip()
+
     #Completions
 
     @staticmethod
-    def _static_completions(prompt: str,
+    def create_generator(client: httpx.Client, base_url:str, payload:dict, headers:dict, full_output:bool) -> GeneratorType:
+        with client.stream("POST", f"{base_url}/v1/completions", json=payload, headers=headers) as response:
+            # Check if the response status is 200
+            if response.status_code != 200:
+                raise Exception(f"Error: Received unexpected status code {response.status_code}")
+
+            # Stream chunks and yield them as the server sends responses
+            for chunk in response.iter_bytes():
+                # Here, you can process each chunk as you receive it
+                # For example, decode and yield as you go
+                decoded_chunk = chunk.decode("utf-8")
+                if "data: [DONE]" in decoded_chunk:
+                    break
+                if full_output:
+                    yield json.loads(json_repair.repair_json(decoded_chunk))
+                else:
+
+                    yield json.loads(json_repair.repair_json(decoded_chunk))["choices"][0]["text"]
+
+    @staticmethod
+    def static_completions(prompt: str,
                            model: Optional[str] = None,
                            api_key: Optional[str] = None,
                            stream: Optional[bool] = False,
@@ -73,8 +103,7 @@ class RegoloClient:
                            client: Optional[httpx.Client] = None,
                            base_url: str = REGOLO_URL,
                            full_output: Optional[bool] = False) -> GeneratorType:
-        """
-        Internal method, returns generators.
+        """Will return generators for stream=True and values for stream=False
         Send a prompt to regolo server and get the generated response.
 
         Args:
@@ -114,78 +143,14 @@ class RegoloClient:
         payload = {k: v for k, v in payload.items() if v is not None}
         headers = {"Authorization": api_key}
         if stream:
-            with client.stream("POST", f"{base_url}/v1/completions", json=payload, headers=headers) as response:
-                # Check if the response status is 200
-                if response.status_code != 200:
-                    raise Exception(f"Error: Received unexpected status code {response.status_code}")
-
-                # Stream chunks and yield them as the server sends responses
-                for chunk in response.iter_bytes():
-                    # Here, you can process each chunk as you receive it
-                    # For example, decode and yield as you go
-                    decoded_chunk = chunk.decode("utf-8")
-                    if  "data: [DONE]" in decoded_chunk:
-                        break
-                    if full_output:
-                        yield json.loads(json_repair.repair_json(decoded_chunk))
-                    else:
-                        yield json.loads(json_repair.repair_json(decoded_chunk))["choices"][0]["text"]
+            return RegoloClient.create_generator(client=client, base_url=base_url, payload=payload, headers=headers,
+                                                 full_output=full_output)
         else:
             response = safe_post(client=client, url=f"{base_url}/v1/completions", json=payload, headers=headers)
             if full_output:
-                yield response.json()
+                return response.json()
             else:
-                yield response.json()["choices"][0]["text"]
-
-    @staticmethod
-    def static_completions(prompt: str,
-                           model: Optional[str] = None,
-                           api_key: Optional[str] = None,
-                           stream: Optional[bool] = False,
-                           max_tokens: Optional[int] = None,
-                           temperature: Optional[float] = None,
-                           top_p: Optional[float] = None,
-                           top_k: Optional[int] = None,
-                           client: Optional[httpx.Client] = None,
-                           base_url: str = REGOLO_URL,
-                           full_output: Optional[bool] = False) -> Dict[str, Any] | GeneratorType:
-        """ Will return generators for stream=True and values for stream=False
-        Send a prompt to regolo server and get the generated response.
-
-        Args:
-            prompt (str): The input prompt to the LLM.
-            model (str): The regolo.ai model to use.
-            api_key (str): The API key for regolo.ai.
-            stream (bool): Whether to stream the prompt from regolo.ai.
-            max_tokens (int, optional): Maximum number of tokens to generate.
-            temperature (float, optional): Sampling temperature for randomness.
-            top_p (float, optional): Nucleus sampling parameter.
-            top_k (int, optional): Top-k sampling parameter.
-            client (httpx.Client, optional): httpx client to use.
-            base_url (str): Base URL of the regolo HTTP server.
-            full_output (bool): Whether to show full output with usage statistics.
-
-        Returns:
-            dict: Response from the vLLM server.
-        """
-        response = RegoloClient._static_completions(
-            prompt=prompt,
-            model=model,
-            api_key=api_key,
-            stream=stream,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            top_p=top_p,
-            top_k=top_k,
-            client=client,
-            base_url=base_url,
-            full_output=full_output
-        )
-
-        if stream is True:
-            return response
-        else:
-            return next(response)
+                return response.json()["choices"][0]["text"]
 
     def completions(self,
                     prompt: str,
@@ -225,10 +190,12 @@ class RegoloClient:
                                  top_p: Optional[float] = None,
                                  top_k: Optional[int] = None,
                                  client: Optional[httpx.Client] = None,
-                                 base_url: str = REGOLO_URL
-                                 ) -> Dict[str, Any]:
+                                 base_url: str = REGOLO_URL,
+                                 full_output: bool = False
+                                 ) -> GeneratorType:
         """
-        Send a series of chat messages to the vLLM server and get the response.
+        Internal method, returns generators.
+        Sends a series of chat messages to the vLLM server and gets the response.
 
         Args:
             messages (List[Dict[str, str]]): A list of messages in the format ["role": "user"|"assistant", "content": "message"].
@@ -267,9 +234,22 @@ class RegoloClient:
 
         if stream:  # TODO: fix
             with client.stream("POST", f"{base_url}/v1/chat/completions", json=payload, headers=headers) as response:
-                for line in response.iter_lines():
-                    if line:
-                        line.decode("utf-8")
+                # Check if the response status is 200
+                if response.status_code != 200:
+                    raise Exception(f"Error: Received unexpected status code {response.status_code}")
+
+                # Stream chunks and yield them as the server sends responses
+                for chunk in response.iter_bytes():
+                    # Here, you can process each chunk as you receive it
+                    # For example, decode and yield as you go
+                    decoded_chunk = chunk.decode("utf-8")
+                    if  "data: [DONE]" in decoded_chunk:
+                        break
+                    if full_output:
+                        yield json.loads(json_repair.repair_json(decoded_chunk))
+                    else:
+                        yield (json.loads(json_repair.repair_json(decoded_chunk))["choices"][0]["role"],
+                               json.loads(json_repair.repair_json(decoded_chunk))["choices"][0]["message"])
         else:
             response = safe_post(client=client, url=f"{base_url}/v1/chat/completions", json=payload,
                                  headers=headers)
@@ -286,7 +266,8 @@ class RegoloClient:
                                 top_p: Optional[float] = None,
                                 top_k: Optional[int] = None,
                                 client: Optional[httpx.Client] = None,
-                                base_url: str = REGOLO_URL
+                                base_url: str = REGOLO_URL,
+                                full_output: bool = False
                                 ) -> Dict[str, Any] | GeneratorType:
         """
         Send a series of chat messages to the vLLM server and get the response.
@@ -315,14 +296,15 @@ class RegoloClient:
             top_p=top_p,
             top_k=top_k,
             client=client,
-            base_url=base_url
+            base_url=base_url,
+            full_output=full_output
         )
 
         if isinstance(response, GeneratorType):
             return response
         else:
             # Handle non-streaming response (access dictionary directly)
-            print(response["choices"][0]["text"])
+            ...
 
     def add_prompt_to_chat(self, prompt: str, role):
         """
