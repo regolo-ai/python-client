@@ -14,11 +14,16 @@ from regolo.models.models import ModelsHandler
 import regolo
 
 REGOLO_URL = "https://api.regolo.ai"
+COMPLETIONS_URL_PATH = "/v1/completions"
+CHAT_COMPLETIONS_URL_PATH = "/v1/chat/completions"
 timeout = 500
 
 
-def safe_post(client: httpx.Client, url: str, json: dict = None, headers: dict = None) -> httpx.Response:
-    response = client.post(url=url, json=json, headers=headers, timeout=timeout)
+def safe_post(client: httpx.Client,
+              url_to_query: str,
+              json_to_query: dict = None,
+              headers_to_query: dict = None) -> httpx.Response:
+    response = client.post(url=url_to_query, json=json_to_query, headers=headers_to_query, timeout=timeout)
     response.raise_for_status()
     return response
 
@@ -69,6 +74,39 @@ class RegoloClient:
                 output_text += token  # Continuation of the previous word
         return output_text.strip()
 
+    @staticmethod
+    def create_stream_generator(client: httpx.Client, base_url: str, payload: dict, headers: dict,
+                                full_output: bool, search_url, output_handler) -> GeneratorType:
+
+        with client.stream("POST", f"{base_url}{search_url}", json=payload, headers=headers) as response:
+            if response.status_code != 200:
+                raise Exception(f"Error: Received unexpected status code {response.status_code}")
+
+            # Iterate over complete lines instead of raw bytes
+            for line in response.iter_lines():
+                if not line:
+                    continue
+
+                # Decode if necessary and remove the "data:" prefix if present
+                decoded_line = line.decode("utf-8") if isinstance(line, bytes) else line
+                decoded_line = decoded_line.strip()
+                if decoded_line == "data: [DONE]":
+                    break
+                if decoded_line.startswith("data:"):
+                    decoded_line = decoded_line[len("data:"):].strip()
+
+                try:
+                    # Repair and parse the JSON chunk
+                    data = json.loads(json_repair.repair_json(decoded_line))
+                except (Exception,):
+                    continue
+
+                if full_output:
+                    yield data
+                else:
+                    # Handle both dict and list responses uniformly
+                    yield output_handler(data)
+
     # Completions
 
     @staticmethod
@@ -97,41 +135,14 @@ class RegoloClient:
             top_k (int, optional): Top-k sampling parameter.
             client (httpx.Client, optional): httpx client to use.
             base_url (str): Base URL of the regolo HTTP server.
+            full_output (bool, optional): Whether to return full response.
 
         Returns:
             dict: Response from the vLLM server.
-        """
-        def create_stream_generator(client: httpx.Client, base_url: str, payload: dict, headers: dict,
-                                    full_output: bool) -> GeneratorType:
-            with client.stream("POST", f"{base_url}/v1/completions", json=payload, headers=headers) as response:
-                if response.status_code != 200:
-                    raise Exception(f"Error: Received unexpected status code {response.status_code}")
+ì        """
 
-                # Iterate over complete lines instead of raw bytes
-                for line in response.iter_lines():
-                    if not line:
-                        continue
-
-                    # Decode if necessary and remove the "data:" prefix if present
-                    decoded_line = line.decode("utf-8") if isinstance(line, bytes) else line
-                    decoded_line = decoded_line.strip()
-                    if decoded_line == "data: [DONE]":
-                        break
-                    if decoded_line.startswith("data:"):
-                        decoded_line = decoded_line[len("data:"):].strip()
-
-                    try:
-                        # Repair and parse the JSON chunk
-                        data = json.loads(json_repair.repair_json(decoded_line))
-                    except Exception:
-                        continue
-
-                    if full_output:
-                        yield data
-                    else:
-                        text = data.get("choices", [{}])[0].get("text")
-                        yield text
-
+        def handle_search_text_completions(data: dict):
+            return data.get("choices", [{}])[0].get("text")
 
         if api_key is None:
             api_key = regolo.default_key
@@ -155,10 +166,13 @@ class RegoloClient:
         payload = {k: v for k, v in payload.items() if v is not None}
         headers = {"Authorization": api_key}
         if stream:
-            return create_stream_generator(client=client, base_url=base_url, payload=payload, headers=headers,
-                                           full_output=full_output)
+            return RegoloClient.create_stream_generator(client=client, base_url=base_url, payload=payload,
+                                                        headers=headers,
+                                                        full_output=full_output, search_url=COMPLETIONS_URL_PATH,
+                                                        output_handler=handle_search_text_completions)
         else:
-            response = safe_post(client=client, url=f"{base_url}/v1/completions", json=payload, headers=headers)
+            response = safe_post(client=client, url_to_query=f"{base_url}{COMPLETIONS_URL_PATH}",
+                                 json_to_query=payload, headers_to_query=headers)
             if full_output:
                 return response.json()
             else:
@@ -219,50 +233,24 @@ class RegoloClient:
             top_k (int, optional): Top-k sampling parameter.
             client (httpx.Client): httpx client to use.
             base_url (str): Base URL of the regolo HTTP server.
+            full_output (bool, optional): Whether to return full response.
+
         Returns:
             dict: Response from the vLLM server.
         """
 
-        def create_stream_generator(client: httpx.Client, base_url: str, payload: dict, headers: dict,
-                                    full_output: bool) -> GeneratorType:
-            with client.stream("POST", f"{base_url}/v1/chat/completions", json=payload, headers=headers) as response:
-                if response.status_code != 200:
-                    raise Exception(f"Error: Received unexpected status code {response.status_code}")
-
-                # Iterate over complete lines instead of raw bytes
-                for line in response.iter_lines():
-                    if not line:
-                        continue
-
-                    # Decode if necessary and remove the "data:" prefix if present
-                    decoded_line = line.decode("utf-8") if isinstance(line, bytes) else line
-                    decoded_line = decoded_line.strip()
-                    if decoded_line == "data: [DONE]":
-                        break
-                    if decoded_line.startswith("data:"):
-                        decoded_line = decoded_line[len("data:"):].strip()
-
-                    try:
-                        # Repair and parse the JSON chunk
-                        data = json.loads(json_repair.repair_json(decoded_line))
-                    except Exception:
-                        continue
-
-                    if full_output:
-                        yield data
-                    else:
-                        # Handle both dict and list responses uniformly
-                        if isinstance(data, dict):
-                            delta = data.get("choices", [{}])[0].get("delta", {})
-                            role = delta.get("role", "")
-                            content = delta.get("content", "")
-                            yield role, content
-                        elif isinstance(data, list):
-                            for element in data:
-                                delta = element.get("choices", [{}])[0].get("delta", {})
-                                role = delta.get("role", "")
-                                content = delta.get("content", "")
-                                yield role, content
+        def handle_search_text_chat_completions(data: dict):
+            if isinstance(data, dict):
+                delta = data.get("choices", [{}])[0].get("delta", {})
+                role = delta.get("role", "")
+                content = delta.get("content", "")
+                return role, content
+            elif isinstance(data, list):
+                for element in data:
+                    delta = element.get("choices", [{}])[0].get("delta", {})
+                    role = delta.get("role", "")
+                    content = delta.get("content", "")
+                    return role, content
 
         if type(messages) == Conversation:
             messages = messages.get_lines()  # TODO: to test
@@ -286,11 +274,13 @@ class RegoloClient:
         headers = {"Authorization": api_key}
 
         if stream:
-            return create_stream_generator(client=client, base_url=base_url, payload=payload, headers=headers,
-                                           full_output=full_output)
+            return RegoloClient.create_stream_generator(client=client, base_url=base_url, payload=payload,
+                                                        headers=headers,
+                                                        full_output=full_output, search_url=COMPLETIONS_URL_PATH,
+                                                        output_handler=handle_search_text_chat_completions)
         else:
-            response = safe_post(client=client, url=f"{base_url}/v1/chat/completions", json=payload,
-                                 headers=headers)
+            response = safe_post(client=client, url_to_query=f"{base_url}{CHAT_COMPLETIONS_URL_PATH}",
+                                 json_to_query=payload, headers_to_query=headers)
 
             return response.json()
 
@@ -324,17 +314,17 @@ class RegoloClient:
         if user_prompt is not None:
             self.instance.add_prompt_as_role(prompt=user_prompt, role="user")
 
-        response= self.static_chat_completions(messages=self.instance.get_conversation(),
-                                                    model=self.instance.get_model(),
-                                                    stream=stream,
-                                                    api_key=self.instance.get_api_key(),
-                                                    max_tokens=max_tokens,
-                                                    temperature=temperature,
-                                                    top_p=top_p,
-                                                    top_k=top_k,
-                                                    client=self.instance.get_client(),
-                                                    base_url=self.base_url
-                                                    )
+        response = self.static_chat_completions(messages=self.instance.get_conversation(),
+                                                model=self.instance.get_model(),
+                                                stream=stream,
+                                                api_key=self.instance.get_api_key(),
+                                                max_tokens=max_tokens,
+                                                temperature=temperature,
+                                                top_p=top_p,
+                                                top_k=top_k,
+                                                client=self.instance.get_client(),
+                                                base_url=self.base_url
+                                                )
 
         if stream is True:
             return response
