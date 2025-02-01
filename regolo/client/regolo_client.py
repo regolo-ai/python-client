@@ -10,6 +10,7 @@ from regolo.instance.regolo_instance import RegoloInstance
 from regolo.instance.structures.conversation_model import Conversation, ConversationLine
 from regolo.keys.keys import KeysHandler
 from regolo.models.models import ModelsHandler
+from typing import TypeAlias
 
 import regolo
 
@@ -18,6 +19,8 @@ COMPLETIONS_URL_PATH = "/v1/completions"
 CHAT_COMPLETIONS_URL_PATH = "/v1/chat/completions"
 timeout = 500
 
+Role: TypeAlias = str
+Content: TypeAlias = str
 
 def safe_post(client: httpx.Client,
               url_to_query: str,
@@ -217,7 +220,7 @@ class RegoloClient:
                                 client: Optional[httpx.Client] = None,
                                 base_url: str = REGOLO_URL,
                                 full_output: bool = False
-                                ) -> GeneratorType | Dict:
+                                ) -> GeneratorType | tuple[Role, Content] | dict:
         """
         Internal method, returns generators.
         Sends a series of chat messages to the vLLM server and gets the response.
@@ -239,18 +242,18 @@ class RegoloClient:
             dict: Response from the vLLM server.
         """
 
-        def handle_search_text_chat_completions(data: dict):
+        def handle_search_text_chat_completions(data: dict) -> tuple[Role, Content]:
             if isinstance(data, dict):
                 delta = data.get("choices", [{}])[0].get("delta", {})
-                role = delta.get("role", "")
-                content = delta.get("content", "")
-                return role, content
+                out_role = delta.get("role", "")
+                out_content = delta.get("content", "")
+                return out_role, out_content
             elif isinstance(data, list):
                 for element in data:
                     delta = element.get("choices", [{}])[0].get("delta", {})
-                    role = delta.get("role", "")
-                    content = delta.get("content", "")
-                    return role, content
+                    out_role = delta.get("role", "")
+                    out_content = delta.get("content", "")
+                    return out_role, out_content
 
         if type(messages) == Conversation:
             messages = messages.get_lines()  # TODO: to test
@@ -276,13 +279,18 @@ class RegoloClient:
         if stream:
             return RegoloClient.create_stream_generator(client=client, base_url=base_url, payload=payload,
                                                         headers=headers,
-                                                        full_output=full_output, search_url=COMPLETIONS_URL_PATH,
+                                                        full_output=full_output, search_url=CHAT_COMPLETIONS_URL_PATH,
                                                         output_handler=handle_search_text_chat_completions)
         else:
             response = safe_post(client=client, url_to_query=f"{base_url}{CHAT_COMPLETIONS_URL_PATH}",
-                                 json_to_query=payload, headers_to_query=headers)
+                                 json_to_query=payload, headers_to_query=headers).json()
+            if full_output:
+                return response
+            else:
+                role = response["choices"][0]["message"]["content"]
+                content = response["choices"][0]["message"]["content"]
+                return role, content
 
-            return response.json()
 
     def add_prompt_to_chat(self, prompt: str, role):
         """
@@ -310,7 +318,7 @@ class RegoloClient:
                  temperature: Optional[float] = None,
                  top_p: Optional[float] = None,
                  top_k: Optional[int] = None,
-                 full_output: bool = False):
+                 full_output: bool = False) -> GeneratorType | tuple[Role, Content]:
         if user_prompt is not None:
             self.instance.add_prompt_as_role(prompt=user_prompt, role="user")
 
@@ -323,20 +331,19 @@ class RegoloClient:
                                                 top_p=top_p,
                                                 top_k=top_k,
                                                 client=self.instance.get_client(),
-                                                base_url=self.base_url
-                                                )
+                                                base_url=self.base_url,
+                                                full_output=full_output)
 
         if stream is True:
             return response
         else:
-
-            responseRole = response["choices"][0]["message"]["role"]
-            responseText = response["choices"][0]["message"]["content"]
-
-            self.instance.add_line(ConversationLine(role=responseRole,
-                                                    content=responseText))
-
             if full_output:
-                return response
+                responseRole = response["choices"][0]["message"]["role"]
+                responseText = response["choices"][0]["message"]["content"]
             else:
-                return responseText
+                responseRole = response[0]
+                responseText = response[1]
+
+            self.instance.add_line(ConversationLine(role=responseRole, content=responseText))
+
+            return response
