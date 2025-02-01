@@ -101,26 +101,37 @@ class RegoloClient:
         Returns:
             dict: Response from the vLLM server.
         """
-
         def create_stream_generator(client: httpx.Client, base_url: str, payload: dict, headers: dict,
                                     full_output: bool) -> GeneratorType:
             with client.stream("POST", f"{base_url}/v1/completions", json=payload, headers=headers) as response:
-                # Check if the response status is 200
                 if response.status_code != 200:
                     raise Exception(f"Error: Received unexpected status code {response.status_code}")
 
-                # Stream chunks and yield them as the server sends responses
-                for chunk in response.iter_bytes():
-                    # Here, you can process each chunk as you receive it
-                    # For example, decode and yield as you go
-                    decoded_chunk = chunk.decode("utf-8")
-                    if "data: [DONE]" in decoded_chunk:
-                        break
-                    if full_output:
-                        yield json.loads(json_repair.repair_json(decoded_chunk))
-                    else:
+                # Iterate over complete lines instead of raw bytes
+                for line in response.iter_lines():
+                    if not line:
+                        continue
 
-                        yield json.loads(json_repair.repair_json(decoded_chunk))["choices"][0]["text"]
+                    # Decode if necessary and remove the "data:" prefix if present
+                    decoded_line = line.decode("utf-8") if isinstance(line, bytes) else line
+                    decoded_line = decoded_line.strip()
+                    if decoded_line == "data: [DONE]":
+                        break
+                    if decoded_line.startswith("data:"):
+                        decoded_line = decoded_line[len("data:"):].strip()
+
+                    try:
+                        # Repair and parse the JSON chunk
+                        data = json.loads(json_repair.repair_json(decoded_line))
+                    except Exception:
+                        continue
+
+                    if full_output:
+                        yield data
+                    else:
+                        text = data.get("choices", [{}])[0].get("text")
+                        yield text
+
 
         if api_key is None:
             api_key = regolo.default_key
