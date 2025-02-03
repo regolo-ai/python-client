@@ -1,3 +1,0 @@
-pip~=24.2
-httpx~=0.28.1
-pydantic

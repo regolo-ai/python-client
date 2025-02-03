@@ -1,0 +1,52 @@
+# pyproject.toml
+
+[build-system]
+requires      = ["setuptools>=75.8.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "regolo_client"
+version = "1.0.0"
+description = "Simple client to interact with regolo.ai"
+readme = "README.md"
+authors = [{ name = "regolo.ai", email = "" }]
+license = { file = "LICENSE" }
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+]
+keywords = ["regolo", "llm", "chat"]
+dependencies = [
+    "httpx ~= 0.28.1",
+    "pydantic ~= 2.10.6",
+    'json_repair ~= 0.35.0',
+]
+requires-python = ">=3.12"
+
+
+[project.urls]
+Homepage = "https://github.com/regolo-ai/python-client"
+
+
+[tool.bumpver]
+current_version = "1.0.0"
+version_pattern = "MAJOR.MINOR.PATCH"
+commit_message = "bump version {old_version} -> {new_version}"
+tag_message = "{new_version}"
+tag_scope = "default"
+commit = true
+tag = true
+push = true
+
+[tool.bumpver.file_patterns]
+"pyproject.toml" = [
+    'current_version = "{version}"',
+]
+"README.md" = [
+    "{version}",
+    "{pep440_version}",
+]
+"src/*" = [
+    'current_version = "{version}"',
+]
