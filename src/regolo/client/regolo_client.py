@@ -288,7 +288,7 @@ class RegoloClient:
         ModelsHandler.check_model(model)
 
         if type(messages) == Conversation:
-            messages = messages.get_lines()  # TODO: to test
+            messages = messages.get_lines()
         api_key = KeysHandler.check_key(api_key)
 
         if client is None:
