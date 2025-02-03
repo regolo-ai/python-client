@@ -136,3 +136,6 @@ print(client.run_chat())
 
 print(print(client.instance.get_conversation()))
 ```
+
+It is to consider that using the user_prompt parameter in run_chat() is equivalent to adding a prompt with role=user
+through add_prompt_to_chat().
