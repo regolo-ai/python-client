@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "regolo"
-version = "1.0.0"
+version = "1.0.1"
 description = "Simple client to interact with regolo.ai"
 readme = "README.md"
 authors = [{ name = "regolo.ai", email = "dev@regolo.ai" }]
@@ -30,7 +30,7 @@ Homepage = "https://github.com/regolo-ai/python-client"
 
 
 [tool.bumpver]
-current_version = "1.0.0"
+current_version = "1.0.1"
 version_pattern = "MAJOR.MINOR.PATCH"
 commit_message = "bump version {old_version} -> {new_version}"
 tag_message = "{new_version}"
