@@ -15,5 +15,5 @@ class ModelsHandler:
             raise RuntimeError("Model is required")
         elif model not in ModelsHandler.get_models():
             raise RuntimeError("Model not found")
-        # TODO: fix model request if requested model is clear
+        # TODO: fix model request if requested model is understandable
         return model

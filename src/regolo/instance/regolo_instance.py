@@ -7,14 +7,15 @@ from regolo.instance.structures.conversation_model import Conversation, Conversa
 from regolo.models.models import ModelsHandler
 from regolo.keys.keys import KeysHandler
 
+
 class RegoloInstance:
     def __init__(self, model: str, api_key: str, client: Optional[httpx.Client],
-                 previous_conversations: Optional[Conversation]=None) -> None:
-        self.conversation: Conversation = Conversation(lines=[]) if previous_conversations is None else previous_conversations
+                 previous_conversations: Optional[Conversation] = None) -> None:
+        self.conversation: Conversation = Conversation(
+            lines=[]) if previous_conversations is None else previous_conversations
         self.client: httpx.Client = httpx.Client() if client is None else client
         self.api_key = KeysHandler.check_key(api_key)
         self.model: str = model
-
 
     def get_client(self) -> httpx.Client:
         return self.client
