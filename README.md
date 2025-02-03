@@ -118,6 +118,9 @@ while True:
 ```python
 import regolo
 
+regolo.default_key = "<EXAMPLE_KEY>"
+regolo.default_model = "meta-llama/Llama-3.3-70B-Instruct"
+
 client = regolo.RegoloClient()
 
 # Make a request
@@ -134,7 +137,7 @@ print(client.run_chat())
 
 # You can print the whole conversation if needed
 
-print(print(client.instance.get_conversation()))
+print(client.instance.get_conversation())
 ```
 
 It is to consider that using the user_prompt parameter in run_chat() is equivalent to adding a prompt with role=user
