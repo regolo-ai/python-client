@@ -9,7 +9,7 @@ name = "regolo_client"
 version = "1.0.0"
 description = "Simple client to interact with regolo.ai"
 readme = "README.md"
-authors = [{ name = "regolo.ai", email = "" }]
+authors = [{ name = "regolo.ai", email = "dev@regolo.ai" }]
 license = { file = "LICENSE" }
 classifiers = [
     "License :: OSI Approved :: MIT License",
