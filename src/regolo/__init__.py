@@ -1,3 +1,5 @@
+__version__ = "1.0.0"
+
 default_key = None
 default_model = None
 
