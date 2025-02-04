@@ -52,8 +52,6 @@ class Conversation(BaseModel):
         return json.loads((self.to_json()))["lines"]
 
     def print_conversation(self):
-        """
-        Prints the conversation in a readable format, with each message prefixed by the role.
-        """
+        """Prints the conversation in a readable format, with each message prefixed by the role."""
         for line in self.get_lines():
             print(f'{line["role"]}: {line["content"]}\n')
