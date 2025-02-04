@@ -27,10 +27,10 @@ dependencies = [
   "pydantic~=2.10.6",
 ]
 
+urls.Homepage = "https://github.com/regolo-ai/python-client"
+
 [project.optional-dependencies]
 dev = ["bumpver", "pip-tools", "pytest", "pre-commit"]
-
-urls.Homepage = "https://github.com/regolo-ai/python-client"
 
 [tool.bumpver]
 current_version = "1.0.2"
