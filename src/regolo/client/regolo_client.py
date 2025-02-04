@@ -28,8 +28,21 @@ Content: TypeAlias = str
 
 def safe_post(client: httpx.Client,
               url_to_query: str,
-              json_to_query: dict = None,
-              headers_to_query: dict = None) -> httpx.Response:
+              json_to_query: Optional[dict] = None,
+              headers_to_query: Optional[dict] = None) -> httpx.Response:
+    """
+    Sends a POST request using the provided HTTPX client.
+
+    :param client: The HTTPX client instance to use for sending the request.
+    :param url_to_query: The URL to which the POST request is sent.
+    :param json_to_query: The JSON payload to include in the request body. (Optional)
+    :param headers_to_query: The headers to include in the request. (Optional)
+
+    :return: The HTTPX response object.
+
+    :raises httpx.HTTPStatusError: If the request fails with an HTTP error status.
+    """
+
     response = client.post(url=url_to_query, json=json_to_query, headers=headers_to_query, timeout=timeout)
     response.raise_for_status()
     return response
@@ -51,6 +64,7 @@ class RegoloClient:
         :param pre_existent_conversation: An existing conversation instance to continue chatting with. (Optional)
         :param pre_existent_client: An existing httpx.Client instance to use. (Optional)
         """
+
         self.base_url = REGOLO_URL if alternative_url is None else alternative_url
         client = httpx.Client(base_url=self.base_url) if pre_existent_client is None else pre_existent_client
         self.instance = RegoloInstance(model=regolo.default_model if model is None else model,
@@ -74,16 +88,6 @@ class RegoloClient:
     def get_available_models() -> List[str]:
         """Gets all available models on regolo.ai."""
         return ModelsHandler.get_models()
-
-    @staticmethod
-    def process_vllm_stream(tokens):
-        output_text = ""
-        for token in tokens:
-            if token.startswith("▁"):  # SentencePiece-style tokenization
-                output_text += " " + token[1:]
-            else:
-                output_text += token  # Continuation of the previous word
-        return output_text.strip()
 
     @staticmethod
     def create_stream_generator(client: httpx.Client,
@@ -147,7 +151,7 @@ class RegoloClient:
                            top_k: Optional[int] = None,
                            client: Optional[httpx.Client] = None,
                            base_url: str = REGOLO_URL,
-                           full_output: bool = False) -> GeneratorType:
+                           full_output: bool = False) -> str | GeneratorType:
         """Will return generators for stream=True and values for stream=False
         Send a prompt to regolo server and get the generated response.
 
@@ -163,24 +167,37 @@ class RegoloClient:
         :param base_url: Base URL of the regolo HTTP server. (Defaults to REGOLO_URL)
         :param full_output: Whether to return the full response. (Defaults to False)
 
-        :return: Response from the vLLM server.
+        :return for stream=true, full_output=False: Generator, which yields dicts with the responses from regolo.ai.
+        :return for stream=True, full_output=True: Generator, which yields tuples of role, content of response.
+        :return for stream=False, full_output=False: String with response from regolo.ai.
+        :return for stream=False, full_output=True: String containing the text of response.
         """
 
         def handle_search_text_completions(data: dict) -> str:
+            """
+            Internal method, describes how RegoloClient.create_stream_generator() should handle output from completions.
+            """
             return data.get("choices", [{}])[0].get("text")
 
+        # Use default API key if none is provided
         if api_key is None:
             api_key = regolo.default_key
 
+        # Validate API key
         api_key = KeysHandler.check_key(api_key)
 
+        # Use the default model if none is specified
         if model is None:
             model = regolo.default_model
 
+        # Validate the selected model
         ModelsHandler.check_model(model)
 
+        # Create a new HTTP client if none is provided
         if client is None:
             client = httpx.Client()
+
+        # Construct the payload for the API request
         payload = {
             "prompt": prompt,
             "stream": stream,
@@ -191,31 +208,63 @@ class RegoloClient:
             "top_k": top_k
         }
 
-        # Filter out parameters that are None
+        # Remove None values from payload to avoid unnecessary parameters
         payload = {k: v for k, v in payload.items() if v is not None}
+
+        # Set authorization header
         headers = {"Authorization": api_key}
+
         if stream:
-            return RegoloClient.create_stream_generator(client=client, base_url=base_url, payload=payload,
-                                                        headers=headers,
-                                                        full_output=full_output, search_url=COMPLETIONS_URL_PATH,
-                                                        output_handler=handle_search_text_completions)
+            # If streaming is enabled, return a generator for handling streamed responses
+            return RegoloClient.create_stream_generator(
+                client=client,
+                base_url=base_url,
+                payload=payload,
+                headers=headers,
+                full_output=full_output,
+                search_url=COMPLETIONS_URL_PATH,
+                output_handler=handle_search_text_completions
+            )
         else:
-            response = safe_post(client=client, url_to_query=f"{base_url}{COMPLETIONS_URL_PATH}",
-                                 json_to_query=payload, headers_to_query=headers)
+            # Send a synchronous POST request
+            response = safe_post(
+                client=client,
+                url_to_query=f"{base_url}{COMPLETIONS_URL_PATH}",
+                json_to_query=payload,
+                headers_to_query=headers
+            )
+
             if full_output:
+                # Return the full JSON response if requested
                 return response.json()
             else:
+                # Extract and return only the generated text
                 return response.json()["choices"][0]["text"]
 
     def completions(self,
                     prompt: str,
-                    stream: Optional[bool] = False,
+                    stream: bool = False,
                     max_tokens: int = 200,
                     temperature: Optional[float] = None,
                     top_p: Optional[float] = None,
                     top_k: Optional[int] = None,
-                    full_output: bool = False) -> Dict[str, Any] | GeneratorType:
-        """Performs requests to completions endpoint from RegoloClient instance."""
+                    full_output: bool = False) -> str | GeneratorType:
+        """Will return generators for stream=True and values for stream=False
+        Performs requests to completions endpoint from RegoloClient instance.
+
+        :param prompt: The input prompt to the LLM.
+        :param stream: Whether to stream the prompt from regolo.ai. (Defaults to False)
+        :param max_tokens: Maximum number of tokens to generate. (Defaults to 200)
+        :param temperature: Sampling temperature for randomness. (Optional)
+        :param top_p: Nucleus sampling parameter. (Optional)
+        :param top_k: Top-k sampling parameter. (Optional)
+        :param full_output: Whether to return the full response. (Defaults to False)
+
+        :return for stream=true, full_output=False: Generator, which yields dicts with the responses from regolo.ai.
+        :return for stream=True, full_output=True: Generator, which yields tuples of role, content of response.
+        :return for stream=False, full_output=False: String with response from regolo.ai.
+        :return for stream=False, full_output=True: String containing the text of response.
+        """
         response = self.static_completions(prompt=prompt,
                                            model=self.instance.get_model(),
                                            api_key=self.instance.get_api_key(),
@@ -267,7 +316,10 @@ class RegoloClient:
         """
 
         def handle_search_text_chat_completions(data: dict) -> tuple[Role, Content]:
-            """Internal method, describes how RegoloClient.create_stream_generator should handle output from chat_completions."""
+            """
+            Internal method, describes how RegoloClient.create_stream_generator() should handle
+            output from chat_completions.
+            """
             if isinstance(data, dict):
                 delta = data.get("choices", [{}])[0].get("delta", {})
                 out_role = delta.get("role", "")
@@ -280,23 +332,29 @@ class RegoloClient:
                     out_content = delta.get("content", "")
                     return out_role, out_content
 
+        # Use default API key if not provided
         if api_key is None:
             api_key = regolo.default_key
 
+        # Validate the API key
         api_key = KeysHandler.check_key(api_key)
 
+        # Use default model if not specified
         if model is None:
             model = regolo.default_model
 
+        # Validate the model
         ModelsHandler.check_model(model)
 
+        # Convert Conversation object to list of message dictionaries
         if type(messages) == Conversation:
             messages = messages.get_lines()
-        api_key = KeysHandler.check_key(api_key)
 
+        # Create a new HTTP client if one is not provided
         if client is None:
             client = httpx.Client()
 
+        # Construct the payload for the API request
         payload = {
             "model": model,
             "stream": stream,
@@ -307,21 +365,37 @@ class RegoloClient:
             "top_k": top_k
         }
 
-        # Filter out parameters that are None
+        # Remove None values from payload to avoid unnecessary parameters
         payload = {k: v for k, v in payload.items() if v is not None}
+
+        # Set authorization header
         headers = {"Authorization": api_key}
 
         if stream:
-            return RegoloClient.create_stream_generator(client=client, base_url=base_url, payload=payload,
-                                                        headers=headers,
-                                                        full_output=full_output, search_url=CHAT_COMPLETIONS_URL_PATH,
-                                                        output_handler=handle_search_text_chat_completions)
+            # If streaming, return a generator for handling the response
+            return RegoloClient.create_stream_generator(
+                client=client,
+                base_url=base_url,
+                payload=payload,
+                headers=headers,
+                full_output=full_output,
+                search_url=CHAT_COMPLETIONS_URL_PATH,
+                output_handler=handle_search_text_chat_completions
+            )
         else:
-            response = safe_post(client=client, url_to_query=f"{base_url}{CHAT_COMPLETIONS_URL_PATH}",
-                                 json_to_query=payload, headers_to_query=headers).json()
+            # Send a synchronous POST request
+            response = safe_post(
+                client=client,
+                url_to_query=f"{base_url}{CHAT_COMPLETIONS_URL_PATH}",
+                json_to_query=payload,
+                headers_to_query=headers
+            ).json()
+
             if full_output:
+                # Return full response if requested
                 return response
             else:
+                # Extract role and content from response
                 role = response["choices"][0]["message"]["role"]
                 content = response["choices"][0]["message"]["content"]
                 return role, content

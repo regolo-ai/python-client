@@ -29,25 +29,28 @@ class RegoloInstance:
         return self.model
 
     def change_model(self, new_model: str) -> None:
+        """Changes the model of this instance."""
         self.model = ModelsHandler.check_model(new_model)
 
     def get_conversation(self) -> List[Dict[str, str]]:
-        """Get conversation as list of dicts"""
+        """Gets conversation as list of dicts."""
         return self.conversation.get_lines()
 
     def add_line(self, conversation: ConversationLine) -> None:
-        """Adds a line to the conversation"""
+        """Adds a line to the conversation."""
         self.conversation.lines.append(conversation)
 
     def overwrite_conversation(self, conversation: Conversation) -> None:
-        """Overwrites the conversation with the given one"""
+        """Overwrites the conversation with the given one."""
         self.conversation = conversation
 
     def clear_conversation(self) -> None:
-        """Clears the conversation to start a new chat from scratch"""
+        """Clears the conversation to start a new chat from scratch."""
         self.conversation = Conversation(lines=[])
 
     def add_prompt_as_role(self, prompt: str, role: str) -> None:
-        """Adds a prompt as given role to the conversation.
-        Normally roles are "user" and "assistant", but they can vary based on model."""
+        """
+        Adds a prompt as given role to the conversation.
+        Normally roles are "user" and "assistant", but they can vary based on model.
+        """
         self.conversation.lines.append(ConversationLine(role=role, content=prompt))
