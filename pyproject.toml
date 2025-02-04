@@ -7,7 +7,7 @@ requires = [ "setuptools>=75.8", "wheel" ]
 
 [project]
 name = "regolo"
-version = "1.0.1"
+version = "1.0.2"
 description = "Simple client to interact with regolo.ai"
 readme = "README.md"
 keywords = [ "chat", "llm", "regolo" ]
@@ -33,7 +33,7 @@ dev = ["bumpver", "pip-tools", "pytest", "pre-commit"]
 urls.Homepage = "https://github.com/regolo-ai/python-client"
 
 [tool.bumpver]
-current_version = "1.0.1"
+current_version = "1.0.2"
 version_pattern = "MAJOR.MINOR.PATCH"
 commit_message = "bump version {old_version} -> {new_version}"
 tag_message = "{new_version}"

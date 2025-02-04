@@ -1,5 +1,5 @@
 # The version of the current module.
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 
 # Default values for the API key and model.
 # These can be set later before creating instances of the client.
