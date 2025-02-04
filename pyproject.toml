@@ -26,6 +26,10 @@ dependencies = [
   "json-repair~=0.35.0",
   "pydantic~=2.10.6",
 ]
+
+[project.optional-dependencies]
+dev = ["bumpver", "pip-tools", "pytest", "pre-commit"]
+
 urls.Homepage = "https://github.com/regolo-ai/python-client"
 
 [tool.bumpver]
