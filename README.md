@@ -1,24 +1,24 @@
-# **Regolo.ai Python Client** 
+# **Regolo.ai Python Client**
 
-A simple Python client for interacting for **Regolo.ai's** LLM-based API. 
+A simple Python client for interacting for **Regolo.ai's** LLM-based API.
 
-## **Installation** 
+## **Installation**
 Ensure you have the `regolo` module installed. If not, install it using:
 
 ```bash
   pip install regolo
-``` 
+```
 
 # **Basic Usage**
 
-## **1. Import the regolo module** 
+## **1. Import the regolo module**
 
 ```python
 import regolo
 ```
- ## **2. Set Up Default API Key and Model** 
+ ## **2. Set Up Default API Key and Model**
 
-To avoid manually passing the API key and model in every request, you can set them globally: 
+To avoid manually passing the API key and model in every request, you can set them globally:
 
 ```python
 regolo.default_key = "<EXAMPLE_KEY>"
@@ -30,7 +30,7 @@ use the specified API key and model.
 
 Still, you can create run methods by passing model and key directly.
 
- ## **3. Perform a basic request** 
+ ## **3. Perform a basic request**
 
 ### Completion:
 ```python
@@ -97,7 +97,7 @@ while True:
         print(next(response), end='', flush=True)
     except StopIteration:
         break
-        
+
 # Chat completions
 
 client = regolo.RegoloClient()

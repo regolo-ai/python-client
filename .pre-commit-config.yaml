@@ -63,9 +63,3 @@ repos:
         language_version: python3.12
       - id: pyproject-fmt
         language_version: python3.13
-
-  - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.1.9
-    hooks:
-      - id: ruff
-        args: [--fix]

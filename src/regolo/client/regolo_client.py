@@ -1,18 +1,21 @@
 import json
 from types import GeneratorType
-
-import httpx
-from typing import Any, Dict, List, Optional, Callable
-
-from json_repair import json_repair
-
-from regolo.instance.regolo_instance import RegoloInstance
-from regolo.instance.structures.conversation_model import Conversation, ConversationLine
-from regolo.keys.keys import KeysHandler
-from regolo.models.models import ModelsHandler
+from typing import Any
+from typing import Callable
+from typing import Dict
+from typing import List
+from typing import Optional
 from typing import TypeAlias
 
+import httpx
+from json_repair import json_repair
+
 import regolo
+from regolo.instance.regolo_instance import RegoloInstance
+from regolo.instance.structures.conversation_model import Conversation
+from regolo.instance.structures.conversation_model import ConversationLine
+from regolo.keys.keys import KeysHandler
+from regolo.models.models import ModelsHandler
 
 REGOLO_URL = "https://api.regolo.ai"
 COMPLETIONS_URL_PATH = "/v1/completions"

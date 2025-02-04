@@ -1,11 +1,13 @@
-from typing import Optional, List, Dict
+from typing import Dict
+from typing import List
+from typing import Optional
 
 import httpx
 
-from regolo.instance.structures.conversation_model import Conversation, ConversationLine
-
-from regolo.models.models import ModelsHandler
+from regolo.instance.structures.conversation_model import Conversation
+from regolo.instance.structures.conversation_model import ConversationLine
 from regolo.keys.keys import KeysHandler
+from regolo.models.models import ModelsHandler
 
 
 class RegoloInstance:
