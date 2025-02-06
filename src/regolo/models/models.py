@@ -42,7 +42,8 @@ class ModelsHandler:
         if model is None:
             raise RuntimeError("Model is required")  # Ensure the model is not None
         elif model not in ModelsHandler.get_models():
-            raise RuntimeError("Model not found")  # Raise error if the model doesn't exist in the available models
+            pass # TODO: if model is not present:
+            # raise RuntimeError("Model not found")  # Raise error if the model doesn't exist in the available models
 
         # TODO: Add handling for a more flexible model request (e.g., fuzzy search or alternatives)
         return model  # Return the model if it's valid
