@@ -65,11 +65,12 @@ class RegoloClient:
         :param pre_existent_client: An existing httpx.Client instance to use. (Optional)
         """
 
-        self.base_url = REGOLO_URL if alternative_url is None else alternative_url
-        client = httpx.Client(base_url=self.base_url) if pre_existent_client is None else pre_existent_client
+        base_url = REGOLO_URL if alternative_url is None else alternative_url
+        client = httpx.Client(base_url=base_url) if pre_existent_client is None else pre_existent_client
         self.instance = RegoloInstance(model=regolo.default_model if model is None else model,
                                        api_key=regolo.default_key if api_key is None else api_key,
-                                       previous_conversations=pre_existent_conversation, client=client)
+                                       previous_conversations=pre_existent_conversation, client=client,
+                                       base_url=base_url)
 
     @classmethod
     def from_instance(cls, instance: RegoloInstance, alternative_url: Optional[str] = None) -> "RegoloClient":
@@ -85,9 +86,16 @@ class RegoloClient:
             print(e)
 
     @staticmethod
-    def get_available_models() -> List[str]:
-        """Gets all available models on regolo.ai."""
-        return ModelsHandler.get_models()
+    def get_available_models(base_url: str, api_key: str) -> List[str]:
+        """
+        Gets all available models on regolo.ai.
+
+        :param base_url: Base URL of the regolo HTTP server.
+        :param api_key: The API key for regolo.ai.
+
+        :return: A list of available models.
+        """
+        return ModelsHandler.get_models(base_url=base_url, api_key=api_key)
 
     @staticmethod
     def create_stream_generator(client: httpx.Client,
@@ -191,7 +199,7 @@ class RegoloClient:
             model = regolo.default_model
 
         # Validate the selected model
-        ModelsHandler.check_model(model)
+        ModelsHandler.check_model(model=model, api_key=api_key, base_url=base_url)
 
         # Create a new HTTP client if none is provided
         if client is None:
@@ -274,7 +282,7 @@ class RegoloClient:
                                            top_p=top_p,
                                            top_k=top_k,
                                            client=self.instance.client,
-                                           base_url=self.base_url,
+                                           base_url=self.instance.base_url,
                                            full_output=full_output)
 
         return response
@@ -344,7 +352,7 @@ class RegoloClient:
             model = regolo.default_model
 
         # Validate the model
-        ModelsHandler.check_model(model)
+        ModelsHandler.check_model(model=model, base_url=base_url, api_key=api_key)
 
         # Convert Conversation object to list of message dictionaries
         if type(messages) == Conversation:
@@ -455,7 +463,7 @@ class RegoloClient:
                                                 top_p=top_p,
                                                 top_k=top_k,
                                                 client=self.instance.get_client(),
-                                                base_url=self.base_url,
+                                                base_url=self.instance.base_url,
                                                 full_output=full_output)
 
         if stream is True:

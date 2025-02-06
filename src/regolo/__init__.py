@@ -6,6 +6,9 @@ __version__ = "1.0.2"
 default_key = None
 default_model = None
 
+# if your server has a /models openai compatible endpoint, you can enable model availability checks
+enable_model_checks = False
+
 # Importing the main client from the regolo.client module for interacting with the Regolo API.
 from regolo.client.regolo_client import RegoloClient
 

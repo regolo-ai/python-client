@@ -21,7 +21,7 @@ class RegoloInstance:
     :param previous_conversations: An optional `Conversation` instance to maintain chat history.
     """
 
-    def __init__(self, model: str, api_key: str, client: Optional[httpx.Client],
+    def __init__(self, model: str, api_key: str, base_url: str, client: Optional[httpx.Client],
                  previous_conversations: Optional[Conversation] = None) -> None:
         """
         Initializes a RegoloInstance.
@@ -34,8 +34,9 @@ class RegoloInstance:
         self.conversation: Conversation = Conversation(
             lines=[]) if previous_conversations is None else previous_conversations
         self.client: httpx.Client = httpx.Client() if client is None else client
-        self.api_key = KeysHandler.check_key(api_key)
+        self.api_key: str = KeysHandler.check_key(api_key)
         self.model: str = model
+        self.base_url: str = base_url
 
     def get_client(self) -> httpx.Client:
         """
@@ -67,7 +68,7 @@ class RegoloInstance:
 
         :param new_model: The new model name to switch to.
         """
-        self.model = ModelsHandler.check_model(new_model)
+        self.model = ModelsHandler.check_model(model=new_model, base_url=self.base_url, api_key=self.api_key)
 
     def get_conversation(self) -> List[Dict[str, str]]:
         """
