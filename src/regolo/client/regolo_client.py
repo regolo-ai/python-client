@@ -1,6 +1,6 @@
 import json
 from types import GeneratorType
-from typing import Any
+from typing import Any, Generator
 from typing import Callable
 from typing import Dict
 from typing import List
@@ -104,7 +104,7 @@ class RegoloClient:
                                 headers: dict,
                                 full_output: bool,
                                 search_url: str,
-                                output_handler: Callable[[Dict], Any]) -> GeneratorType:
+                                output_handler: Callable[[Dict], Any]) -> Generator[Any, Any, None]:
         """
         Yields generators for streams from regolo.ai.
 
@@ -159,7 +159,7 @@ class RegoloClient:
                            top_k: Optional[int] = None,
                            client: Optional[httpx.Client] = None,
                            base_url: str = REGOLO_URL,
-                           full_output: bool = False) -> str | GeneratorType:
+                           full_output: bool = False) -> str | Generator[Any, Any, None]:
         """Will return generators for stream=True and values for stream=False
         Send a prompt to regolo server and get the generated response.
 
@@ -301,7 +301,7 @@ class RegoloClient:
                                 client: Optional[httpx.Client] = None,
                                 base_url: str = REGOLO_URL,
                                 full_output: bool = False
-                                ) -> GeneratorType | tuple[Role, Content] | dict:
+                                ) -> Generator[Any, Any, None] | tuple[Role, Content] | dict:
         """
         Sends a series of chat messages to the vLLM server and gets the response.
 
@@ -323,21 +323,21 @@ class RegoloClient:
         :return for stream=False, full_output=True: Tuple which consists of role and content of response.
         """
 
-        def handle_search_text_chat_completions(data: dict) -> tuple[Role, Content]:
+        def handle_search_text_chat_completions(data: dict) -> Optional[tuple[Role, Content]]:
             """
             Internal method, describes how RegoloClient.create_stream_generator() should handle
             output from chat_completions.
             """
             if isinstance(data, dict):
                 delta = data.get("choices", [{}])[0].get("delta", {})
-                out_role = delta.get("role", "")
-                out_content = delta.get("content", "")
+                out_role: Role = delta.get("role", "")
+                out_content: Content = delta.get("content", "")
                 return out_role, out_content
             elif isinstance(data, list):
                 for element in data:
                     delta = element.get("choices", [{}])[0].get("delta", {})
-                    out_role = delta.get("role", "")
-                    out_content = delta.get("content", "")
+                    out_role: Role = delta.get("role", "")
+                    out_content: Content = delta.get("content", "")
                     return out_role, out_content
 
         # Use default API key if not provided
