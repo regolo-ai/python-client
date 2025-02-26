@@ -15,6 +15,7 @@ pytest.mark.skipif(API_KEY is None, reason="Api key not set")
 regolo.default_key = os.getenv("TEST_KEY")
 regolo.default_model = "Llama-3.3-70B-Instruct"
 
+# testing with mock methods
 def test_completions():
     dotenv.load()
     regolo.default_key = os.getenv("TEST_KEY")
@@ -36,6 +37,8 @@ def test_chat_completions():
     response = client.static_chat_completions(prompt="Tell me something about Rome.")
     assert response == mock_response
 
+
+# testing evaluation of actual response from client
 
 def test_static_completions():
     dotenv.load()

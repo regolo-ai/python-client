@@ -20,6 +20,8 @@ from regolo.models.models import ModelsHandler
 REGOLO_URL = "https://api.regolo.ai"
 COMPLETIONS_URL_PATH = "/v1/completions"
 CHAT_COMPLETIONS_URL_PATH = "/v1/chat/completions"
+IMAGE_GENERATION_URL_PATH = "/v1/images/generations"
+
 timeout = 500
 
 Role: TypeAlias = str
@@ -479,3 +481,93 @@ class RegoloClient:
             self.instance.add_line(ConversationLine(role=responseRole, content=responseText))
 
             return response
+
+    # Images
+    @staticmethod
+    def static_images(prompt: str,
+                      model: Optional[str] = None,
+                      api_key: Optional[str] = None,
+                      stream: bool = False,
+                      max_tokens: int = 200,
+                      temperature: Optional[float] = 0.5,
+                      top_p: Optional[float] = None,
+                      top_k: Optional[int] = None,
+                      client: Optional[httpx.Client] = None,
+                      base_url: str = REGOLO_URL,
+                      full_output: bool = False) -> str | Generator[Any, Any, None]:
+        """
+        Generates an image based on the given prompt using the regolo.ai image model.
+
+        :param prompt: The text prompt for image generation.
+        :param model: The regolo.ai image model to use. (Optional)
+        :param api_key: The API key for regolo.ai. (Optional)
+        :param stream: Whether to stream the image generation response. (Defaults to False)
+        :param max_tokens: Maximum number of tokens for processing (not relevant for images, kept for consistency).
+        :param temperature: Sampling temperature for randomness in image generation. (Defaults to 0.5)
+        :param top_p: Nucleus sampling parameter. (Optional)
+        :param top_k: Top-k sampling parameter. (Optional)
+        :param client: HTTP client for making requests. (Optional)
+        :param base_url: Base URL of the regolo HTTP server. (Defaults to REGOLO_URL)
+        :param full_output: Whether to return full response. (Defaults to False)
+
+        :return: URL of the generated image or a generator if streaming is enabled.
+        """
+
+        # Use default API key if not provided
+        if api_key is None:
+            api_key = regolo.default_key
+
+        # Validate the API key
+        api_key = KeysHandler.check_key(api_key)
+
+        # Use default model if not specified
+        if model is None:
+            model = regolo.default_image_model
+
+        # Validate the model
+        ModelsHandler.check_model(model=model, base_url=base_url, api_key=api_key)
+
+        # Create a new HTTP client if one is not provided
+        if client is None:
+            client = httpx.Client()
+
+        # Construct the payload for the API request
+        payload = {
+            "model": model,
+            "prompt": prompt,
+            "stream": stream,
+            "temperature": temperature,
+            "top_p": top_p,
+            "top_k": top_k
+        }
+
+        # Remove None values from payload
+        payload = {k: v for k, v in payload.items() if v is not None}
+
+        # Set authorization header
+        headers = {"Authorization": api_key}
+
+        if stream:
+            return RegoloClient.create_stream_generator(
+                client=client,
+                base_url=base_url,
+                payload=payload,
+                headers=headers,
+                full_output=full_output,
+                search_url=IMAGE_GENERATION_URL_PATH,
+                output_handler=lambda x: x
+            )
+        else:
+            # Send a synchronous POST request
+            response = safe_post(
+                client=client,
+                url_to_query=f"{base_url}{IMAGE_GENERATION_URL_PATH}",
+                json_to_query=payload,
+                headers_to_query=headers
+            ).json()
+
+            if full_output:
+                return response
+            else:
+                # Extract the image URL from response
+                return response.get("image_url", "")
