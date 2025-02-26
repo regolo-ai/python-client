@@ -484,14 +484,14 @@ class RegoloClient:
 
     # Images
     @staticmethod
-    def static_images(prompt: str,
+    def static_create_image(prompt: str,
                       model: Optional[str] = None,
                       api_key: Optional[str] = None,
                       stream: bool = False,
-                      max_tokens: int = 200,
-                      temperature: Optional[float] = 0.5,
-                      top_p: Optional[float] = None,
-                      top_k: Optional[int] = None,
+                      n: int = 1,
+                      quality: str = "standard",
+                      size: str = "1024x1024",
+                      style: str = "vivid",
                       client: Optional[httpx.Client] = None,
                       base_url: str = REGOLO_URL,
                       full_output: bool = False) -> str | Generator[Any, Any, None]:
@@ -502,10 +502,10 @@ class RegoloClient:
         :param model: The regolo.ai image model to use. (Optional)
         :param api_key: The API key for regolo.ai. (Optional)
         :param stream: Whether to stream the image generation response. (Defaults to False)
-        :param max_tokens: Maximum number of tokens for processing (not relevant for images, kept for consistency).
-        :param temperature: Sampling temperature for randomness in image generation. (Defaults to 0.5)
-        :param top_p: Nucleus sampling parameter. (Optional)
-        :param top_k: Top-k sampling parameter. (Optional)
+        :param n: The number of images to generate. (Defaults to 1)
+        :param quality: The quality of the image that will be generated. hd creates images with finer details and greater consistency across the image. (Defaults to "standard")
+        :param size: The size of the generated images.
+        :param style: The style of the generated images. (Defaults to "vivid")
         :param client: HTTP client for making requests. (Optional)
         :param base_url: Base URL of the regolo HTTP server. (Defaults to REGOLO_URL)
         :param full_output: Whether to return full response. (Defaults to False)
@@ -536,9 +536,10 @@ class RegoloClient:
             "model": model,
             "prompt": prompt,
             "stream": stream,
-            "temperature": temperature,
-            "top_p": top_p,
-            "top_k": top_k
+            "n": n,
+            "quality": quality,
+            "size": size,
+            "style": style
         }
 
         # Remove None values from payload
