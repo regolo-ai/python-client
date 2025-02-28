@@ -30,7 +30,14 @@ dependencies = [
 urls.Homepage = "https://github.com/regolo-ai/python-client"
 
 [project.optional-dependencies]
-dev = ["bumpver", "pip-tools", "pytest", "pre-commit"]
+imgs = ["pillow~=11.1.0"]
+dev = [
+  "bumpver",
+  "pip-tools",
+  "pytest",
+  "pre-commit",
+  "python-dotenv"
+]
 
 [tool.bumpver]
 current_version = "1.0.3"

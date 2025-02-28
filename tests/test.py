@@ -40,6 +40,7 @@ def test_chat_completions():
 
 # testing evaluation of actual response from client
 
+
 def test_static_completions():
     dotenv.load()
     regolo.default_key = os.getenv("TEST_KEY")

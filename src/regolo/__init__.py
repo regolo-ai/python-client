@@ -21,3 +21,7 @@ static_completions = RegoloClient.static_completions
 
 # Static method for obtaining chat-based completions (message-based response from the model).
 static_chat_completions = RegoloClient.static_chat_completions
+
+# static method for creating an image
+
+static_image_create = RegoloClient.static_create_image

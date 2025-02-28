@@ -9,6 +9,7 @@ from typing import TypeAlias
 
 import httpx
 from json_repair import json_repair
+from base64 import b64decode
 
 import regolo
 from regolo.instance.regolo_instance import RegoloInstance
@@ -487,21 +488,19 @@ class RegoloClient:
     def static_create_image(prompt: str,
                       model: Optional[str] = None,
                       api_key: Optional[str] = None,
-                      stream: bool = False,
                       n: int = 1,
                       quality: str = "standard",
                       size: str = "1024x1024",
                       style: str = "vivid",
                       client: Optional[httpx.Client] = None,
                       base_url: str = REGOLO_URL,
-                      full_output: bool = False) -> str | Generator[Any, Any, None]:
+                      full_output: bool = False) -> list[bytes] | Generator[Any, Any, None]:
         """
         Generates an image based on the given prompt using the regolo.ai image model.
 
         :param prompt: The text prompt for image generation.
         :param model: The regolo.ai image model to use. (Optional)
         :param api_key: The API key for regolo.ai. (Optional)
-        :param stream: Whether to stream the image generation response. (Defaults to False)
         :param n: The number of images to generate. (Defaults to 1)
         :param quality: The quality of the image that will be generated. hd creates images with finer details and greater consistency across the image. (Defaults to "standard")
         :param size: The size of the generated images.
@@ -535,7 +534,6 @@ class RegoloClient:
         payload = {
             "model": model,
             "prompt": prompt,
-            "stream": stream,
             "n": n,
             "quality": quality,
             "size": size,
@@ -548,27 +546,16 @@ class RegoloClient:
         # Set authorization header
         headers = {"Authorization": api_key}
 
-        if stream:
-            return RegoloClient.create_stream_generator(
-                client=client,
-                base_url=base_url,
-                payload=payload,
-                headers=headers,
-                full_output=full_output,
-                search_url=IMAGE_GENERATION_URL_PATH,
-                output_handler=lambda x: x
-            )
-        else:
-            # Send a synchronous POST request
-            response = safe_post(
-                client=client,
-                url_to_query=f"{base_url}{IMAGE_GENERATION_URL_PATH}",
-                json_to_query=payload,
-                headers_to_query=headers
-            ).json()
+        # Send a synchronous POST request
+        response = safe_post(
+            client=client,
+            url_to_query=f"{base_url}{IMAGE_GENERATION_URL_PATH}",
+            json_to_query=payload,
+            headers_to_query=headers
+        ).json()
 
-            if full_output:
-                return response
-            else:
-                # Extract the image URL from response
-                return response.get("image_url", "")
+        if full_output:
+            return response
+        else:
+            # Extract the image URL from response
+            return [b64decode(img_info["b64_json"]) for img_info in response["data"]]
