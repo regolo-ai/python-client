@@ -142,3 +142,25 @@ print(client.instance.get_conversation())
 
 It is to consider that using the user_prompt parameter in run_chat() is equivalent to adding a prompt with role=user
 through add_prompt_to_chat().
+
+
+## **Handling image models**
+
+```python
+from io import BytesIO
+
+import regolo
+from PIL import Image
+
+regolo.default_image_model = "FLUX.1-dev"
+regolo.default_key = "<EXAMPLE_KEY>"
+
+img_bytes = regolo.static_image_create(prompt="a cat")[0]
+
+image = Image.open(BytesIO(img_bytes))
+
+image.show()
+```
+
+It is to consider that using the user_prompt parameter in run_chat() is equivalent to adding a prompt with role=user
+through add_prompt_to_chat().
