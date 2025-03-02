@@ -1,6 +1,6 @@
-import regolo
-
 import httpx
+
+import regolo
 
 
 class ModelsHandler:

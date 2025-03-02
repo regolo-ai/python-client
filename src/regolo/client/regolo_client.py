@@ -1,15 +1,16 @@
 import json
+from base64 import b64decode
 from types import GeneratorType
-from typing import Any, Generator
+from typing import Any
 from typing import Callable
 from typing import Dict
+from typing import Generator
 from typing import List
 from typing import Optional
 from typing import TypeAlias
 
 import httpx
 from json_repair import json_repair
-from base64 import b64decode
 
 import regolo
 from regolo.instance.regolo_instance import RegoloInstance
