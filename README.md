@@ -146,6 +146,7 @@ through add_prompt_to_chat().
 
 ## **Handling image models**
 
+**Without client:**
 ```python
 from io import BytesIO
 
@@ -156,6 +157,21 @@ regolo.default_image_model = "FLUX.1-dev"
 regolo.default_key = "<EXAMPLE_KEY>"
 
 img_bytes = regolo.static_image_create(prompt="a cat")[0]
+
+image = Image.open(BytesIO(img_bytes))
+
+image.show()
+```
+
+**With client**
+```python
+from io import BytesIO
+
+import regolo
+from PIL import Image
+client = regolo.RegoloClient(image_model="FLUX.1-dev", api_key="<EXAMPLE_KEY>")
+
+img_bytes = client.create_image(prompt="A cat in Rome")[0]
 
 image = Image.open(BytesIO(img_bytes))
 
