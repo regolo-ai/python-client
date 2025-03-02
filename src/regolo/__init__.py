@@ -5,6 +5,7 @@ __version__ = "1.0.3"
 # These can be set later before creating instances of the client.
 default_key = None
 default_model = None
+default_image_model = None
 
 # if your server has a /models openai compatible endpoint, you can enable model availability checks
 enable_model_checks = False
@@ -20,3 +21,7 @@ static_completions = RegoloClient.static_completions
 
 # Static method for obtaining chat-based completions (message-based response from the model).
 static_chat_completions = RegoloClient.static_chat_completions
+
+# static method for creating an image
+
+static_image_create = RegoloClient.static_create_image
