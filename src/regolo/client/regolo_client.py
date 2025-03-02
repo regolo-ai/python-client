@@ -53,8 +53,9 @@ def safe_post(client: httpx.Client,
 
 class RegoloClient:
     def __init__(self,
-                 model: Optional[str] = regolo.default_model,
-                 api_key: Optional[str] = regolo.default_key,
+                 model: Optional[str] = None,
+                 image_model: Optional[str] = None,
+                 api_key: Optional[str] = None,
                  alternative_url: Optional[str] = None,
                  pre_existent_conversation: Optional[Conversation] = None,
                  pre_existent_client: httpx.Client = None) -> None:
@@ -68,10 +69,15 @@ class RegoloClient:
         :param pre_existent_client: An existing httpx.Client instance to use. (Optional)
         """
 
+        model = regolo.default_model if model is None else model
+        image_model = regolo.default_image_model if image_model is None else image_model
+        api_key = regolo.default_key if api_key is None else api_key
         base_url = REGOLO_URL if alternative_url is None else alternative_url
         client = httpx.Client(base_url=base_url) if pre_existent_client is None else pre_existent_client
-        self.instance = RegoloInstance(model=regolo.default_model if model is None else model,
-                                       api_key=regolo.default_key if api_key is None else api_key,
+
+        self.instance = RegoloInstance(model=model,
+                                       image_model=image_model,
+                                       api_key=api_key,
                                        previous_conversations=pre_existent_conversation, client=client,
                                        base_url=base_url)
 
@@ -163,7 +169,8 @@ class RegoloClient:
                            client: Optional[httpx.Client] = None,
                            base_url: str = REGOLO_URL,
                            full_output: bool = False) -> str | Generator[Any, Any, None]:
-        """Will return generators for stream=True and values for stream=False
+        """
+        Will return generators for stream=True and values for stream=False
         Send a prompt to regolo server and get the generated response.
 
         :param prompt: The input prompt to the LLM.
@@ -260,7 +267,8 @@ class RegoloClient:
                     top_p: Optional[float] = None,
                     top_k: Optional[int] = None,
                     full_output: bool = False) -> str | GeneratorType:
-        """Will return generators for stream=True and values for stream=False
+        """
+        Will return generators for stream=True and values for stream=False
         Performs requests to completions endpoint from RegoloClient instance.
 
         :param prompt: The input prompt to the LLM.
@@ -483,18 +491,18 @@ class RegoloClient:
 
             return response
 
-    # Images
+    # Create images
     @staticmethod
     def static_create_image(prompt: str,
-                      model: Optional[str] = None,
-                      api_key: Optional[str] = None,
-                      n: int = 1,
-                      quality: str = "standard",
-                      size: str = "1024x1024",
-                      style: str = "vivid",
-                      client: Optional[httpx.Client] = None,
-                      base_url: str = REGOLO_URL,
-                      full_output: bool = False) -> list[bytes] | Generator[Any, Any, None]:
+                            model: Optional[str] = None,
+                            api_key: Optional[str] = None,
+                            n: int = 1,
+                            quality: str = "standard",
+                            size: str = "1024x1024",
+                            style: str = "realistic",
+                            client: Optional[httpx.Client] = None,
+                            base_url: str = REGOLO_URL,
+                            full_output: bool = False) -> list[bytes] | dict:
         """
         Generates an image based on the given prompt using the regolo.ai image model.
 
@@ -509,7 +517,8 @@ class RegoloClient:
         :param base_url: Base URL of the regolo HTTP server. (Defaults to REGOLO_URL)
         :param full_output: Whether to return full response. (Defaults to False)
 
-        :return: URL of the generated image or a generator if streaming is enabled.
+        :return full_output=True: Dict containing the text of response.
+        :return full_output=False: List containing the images decoded as bytes.
         """
 
         # Use default API key if not provided
@@ -559,3 +568,36 @@ class RegoloClient:
         else:
             # Extract the image URL from response
             return [b64decode(img_info["b64_json"]) for img_info in response["data"]]
+
+    def create_image(self,
+                     prompt: str,
+                     n: int = 1,
+                     quality: str = "standard",
+                     size: str = "1024x1024",
+                     style: str = "realistic",
+                     full_output: bool = False) -> list[bytes] | dict:
+        """
+        Generates an image based on the given prompt using the regolo.ai image model.
+
+        :param prompt: The text prompt for image generation.
+        :param n: The number of images to generate. (Defaults to 1)
+        :param quality: The quality of the image that will be generated. hd creates images with finer details and greater consistency across the image. (Defaults to "standard")
+        :param size: The size of the generated images.
+        :param style: The style of the generated images. (Defaults to "vivid")
+        :param full_output: Whether to return full response. (Defaults to False)
+
+        :return full_output=True: Dict containing the text of response.
+        :return full_output=False: List containing the images decoded as bytes.
+        """
+        response = self.static_create_image(prompt=prompt,
+                                            model=self.instance.image_model,
+                                            api_key=self.instance.api_key,
+                                            n=n,
+                                            quality=quality,
+                                            size=size,
+                                            style=style,
+                                            client=self.instance.client,
+                                            base_url=self.instance.base_url,
+                                            full_output=full_output)
+
+        return response

@@ -21,8 +21,8 @@ class RegoloInstance:
     :param previous_conversations: An optional `Conversation` instance to maintain chat history.
     """
 
-    def __init__(self, model: str, api_key: str, base_url: str, client: Optional[httpx.Client],
-                 previous_conversations: Optional[Conversation] = None) -> None:
+    def __init__(self, model: Optional[str], image_model: Optional[str], api_key: str, base_url: str,
+                 client: Optional[httpx.Client], previous_conversations: Optional[Conversation] = None) -> None:
         """
         Initializes a RegoloInstance.
 
@@ -35,7 +35,8 @@ class RegoloInstance:
             lines=[]) if previous_conversations is None else previous_conversations
         self.client: httpx.Client = httpx.Client() if client is None else client
         self.api_key: str = KeysHandler.check_key(api_key)
-        self.model: str = model
+        self.model: Optional[str] = model
+        self.image_model: Optional[str] = image_model
         self.base_url: str = base_url
 
     def get_client(self) -> httpx.Client:
