@@ -23,6 +23,7 @@ REGOLO_URL = "https://api.regolo.ai"
 COMPLETIONS_URL_PATH = "/v1/completions"
 CHAT_COMPLETIONS_URL_PATH = "/v1/chat/completions"
 IMAGE_GENERATION_URL_PATH = "/v1/images/generations"
+EMBEDDINGS_URL_PATH = "/v1/embeddings"
 
 timeout = 500
 
@@ -55,6 +56,7 @@ def safe_post(client: httpx.Client,
 class RegoloClient:
     def __init__(self,
                  model: Optional[str] = None,
+                 embedder_model: Optional[str] = None,
                  image_model: Optional[str] = None,
                  api_key: Optional[str] = None,
                  alternative_url: Optional[str] = None,
@@ -71,12 +73,14 @@ class RegoloClient:
         """
 
         model = regolo.default_model if model is None else model
+        embedder_model = regolo.default_embedder_model if embedder_model is None else embedder_model
         image_model = regolo.default_image_model if image_model is None else image_model
         api_key = regolo.default_key if api_key is None else api_key
         base_url = REGOLO_URL if alternative_url is None else alternative_url
         client = httpx.Client(base_url=base_url) if pre_existent_client is None else pre_existent_client
 
         self.instance = RegoloInstance(model=model,
+                                       embedder_model=embedder_model,
                                        image_model=image_model,
                                        api_key=api_key,
                                        previous_conversations=pre_existent_conversation, client=client,
@@ -96,7 +100,7 @@ class RegoloClient:
             print(e)
 
     @staticmethod
-    def get_available_models(base_url: str, api_key: str) -> List[str]:
+    def get_available_models(api_key: str, base_url: str=REGOLO_URL) -> List[str]:
         """
         Gets all available models on regolo.ai.
 
@@ -105,6 +109,10 @@ class RegoloClient:
 
         :return: A list of available models.
         """
+
+        # Validate API key
+        api_key = KeysHandler.check_key(api_key)
+
         return ModelsHandler.get_models(base_url=base_url, api_key=api_key)
 
     @staticmethod
@@ -602,3 +610,74 @@ class RegoloClient:
                                             full_output=full_output)
 
         return response
+
+    # Generate embeddings
+    @staticmethod
+    def static_embeddings(input_text: list[str] | str,
+                          model: Optional[str] = None,
+                          api_key: Optional[str] = None,
+                          client: Optional[httpx.Client] = None,
+                          base_url: str = REGOLO_URL,
+                          full_output: bool = False) -> dict | Any:
+        """
+
+        :param input_text: The text to be embedded.
+        :param model: The regolo.ai image model to use. (Optional)
+        :param api_key: The API key for regolo.ai. (Optional)
+        :param client: HTTP client for making requests. (Optional)
+        :param base_url: Base URL of the regolo HTTP server. (Optional)
+        :param full_output: Whether to return full response. (Defaults to False)
+        """
+        # Use default API key if none is provided
+        if api_key is None:
+            api_key = regolo.default_key
+
+        # Validate API key
+        api_key = KeysHandler.check_key(api_key)
+
+        if model is None:
+            model = regolo.default_embedder_model
+
+        # Validate the selected model
+        ModelsHandler.check_model(model=model, api_key=api_key, base_url=base_url)
+
+        # Create a new HTTP client if none is provided
+        if client is None:
+            client = httpx.Client()
+
+        # Construct the payload for the API request
+        payload = {
+            "input": input_text,
+            "model": model,
+        }
+
+        # Remove None values from payload to avoid unnecessary parameters
+        payload = {k: v for k, v in payload.items() if v is not None}
+
+        # Set authorization header
+        headers = {"Authorization": api_key}
+
+        response = safe_post(
+            client=client,
+            url_to_query=f"{base_url}{EMBEDDINGS_URL_PATH}",
+            json_to_query=payload,
+            headers_to_query=headers
+        )
+
+        if full_output:
+            return response.json()
+        else:
+            return response.json()["data"]
+    def embeddings(self,
+                   input_text: list[str] | str,
+                   full_output: bool = False,):
+        """
+        :param input_text: The text to be embedded.
+        :param full_output: Whether to return full response. (Defaults to False)
+        """
+        return self.static_embeddings(input_text=input_text,
+                                      full_output=full_output,
+                                      model=self.instance.image_model,
+                                      api_key=self.instance.api_key,
+                                      client=self.instance.client,
+                                      base_url=self.instance.base_url)
