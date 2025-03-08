@@ -1,8 +1,10 @@
 import os
 from unittest.mock import MagicMock
-import regolo
-import pytest
+
 import dotenv
+import pytest
+
+import regolo
 
 
 dotenv.load()
