@@ -4,10 +4,10 @@ class KeysHandler:
     @staticmethod
     def fix_key(api_key: str) -> str:
         """
-        Ensures the API key has the correct 'Bearer ' prefix.
+        Ensures the API key has the correct 'Bearer' prefix.
 
         :param api_key: The API key to be formatted.
-        :return: A properly formatted API key with the 'Bearer ' prefix.
+        :return: A properly formatted API key with the 'Bearer' prefix.
         """
         if not api_key.startswith("Bearer "):
             return "Bearer " + api_key

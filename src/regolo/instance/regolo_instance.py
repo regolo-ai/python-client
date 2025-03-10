@@ -74,7 +74,7 @@ class RegoloInstance:
 
     def get_conversation(self) -> List[Dict[str, str]]:
         """
-        Gets conversation as list of dictionaries.
+        Gets conversation as a list of dictionaries.
 
         :return: A list of dictionaries representing the conversation history.
         """
@@ -103,7 +103,7 @@ class RegoloInstance:
     def add_prompt_as_role(self, prompt: str, role: str) -> None:
         """
         Adds a prompt to the conversation under a specific role.
-        Normally roles are "user" and "assistant", but they can vary based on model.
+        Normally roles are "user" and "assistant", but they can vary with the model used.
 
         :param prompt: The message content to add.
         :param role: The role of the speaker (e.g., "user", "assistant").
