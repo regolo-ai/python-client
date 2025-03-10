@@ -17,12 +17,16 @@ from regolo.client.regolo_client import RegoloClient
 # Exposing specific methods from the RegoloClient class to make them easily accessible.
 # These methods are used for interacting with the completions and chat completions APIs.
 
-# Static method for obtaining completions (text-based response from the model).
+# Static method for getting completions (text-based response from the model).
 static_completions = RegoloClient.static_completions
 
-# Static method for obtaining chat-based completions (message-based response from the model).
+# Static method for getting chat-based completions (message-based response from the model).
 static_chat_completions = RegoloClient.static_chat_completions
 
 # static method for creating an image
 
 static_image_create = RegoloClient.static_create_image
+
+# static method for generating embeddings
+
+static_embeddings = RegoloClient.static_embeddings

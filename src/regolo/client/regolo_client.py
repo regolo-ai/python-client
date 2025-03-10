@@ -38,7 +38,7 @@ def safe_post(client: httpx.Client,
     """
     Sends a POST request using the provided HTTPX client.
 
-    :param client: The HTTPX client instance to use for sending the request.
+    :param client: The instance of an HTTPX client to use for sending the request.
     :param url_to_query: The URL to which the POST request is sent.
     :param json_to_query: The JSON payload to include in the request body. (Optional)
     :param headers_to_query: The headers to include in the request. (Optional)
@@ -195,7 +195,7 @@ class RegoloClient:
         :param full_output: Whether to return the full response. (Defaults to False)
 
         :return for stream=true, full_output=False: Generator, which yields dicts with the responses from regolo.ai.
-        :return for stream=True, full_output=True: Generator, which yields tuples of role, content of response.
+        :return for stream=True, full_output=True: Generator, which yields tuples of Role, Content of response.
         :return for stream=False, full_output=False: String with response from regolo.ai.
         :return for stream=False, full_output=True: String containing the text of response.
         """
@@ -206,7 +206,7 @@ class RegoloClient:
             """
             return data.get("choices", [{}])[0].get("text")
 
-        # Use default API key if none is provided
+        # Use the default API key if none is provided
         if api_key is None:
             api_key = regolo.default_key
 
@@ -289,7 +289,7 @@ class RegoloClient:
         :param full_output: Whether to return the full response. (Defaults to False)
 
         :return for stream=true, full_output=False: Generator, which yields dicts with the responses from regolo.ai.
-        :return for stream=True, full_output=True: Generator, which yields tuples of role, content of response.
+        :return for stream=True, full_output=True: Generator, which yields tuples of Role, Content of response.
         :return for stream=False, full_output=False: String with response from regolo.ai.
         :return for stream=False, full_output=True: String containing the text of response.
         """
@@ -338,9 +338,9 @@ class RegoloClient:
         :param full_output: Whether to return full response. (Defaults to False)
 
         :return for stream=true, full_output=False: Generator, which yields dicts with the responses from regolo.ai.
-        :return for stream=True, full_output=True: Generator, which yields tuples of role, content of response.
-        :return for stream=False, full_output=False: String with response from regolo.ai.
-        :return for stream=False, full_output=True: Tuple which consists of role and content of response.
+        :return for stream=True, full_output=True: Generator, which yields tuples of Role, Content of response.
+        :return for stream=False, full_output=False: String, with response from regolo.ai.
+        :return for stream=False, full_output=True: Tuple, which consists of role and content of response.
         """
 
         def handle_search_text_chat_completions(data: dict) -> Optional[tuple[Role, Content]]:
@@ -360,21 +360,21 @@ class RegoloClient:
                     out_content: Content = delta.get("content", "")
                     return out_role, out_content
 
-        # Use default API key if not provided
+        # Use the default API key if not provided
         if api_key is None:
             api_key = regolo.default_key
 
         # Validate the API key
         api_key = KeysHandler.check_key(api_key)
 
-        # Use default model if not specified
+        # Use the default model if not specified
         if model is None:
             model = regolo.default_model
 
         # Validate the model
         ModelsHandler.check_model(model=model, base_url=base_url, api_key=api_key)
 
-        # Convert Conversation object to list of message dictionaries
+        # Convert the Conversation object to a list of message dictionaries
         if type(messages) == Conversation:
             messages = messages.get_lines()
 
@@ -466,9 +466,9 @@ class RegoloClient:
         :param top_k: Top-k sampling parameter.
         :param full_output: Whether to return full response. (Defaults to False)
         :return for stream=true, full_output=False: Generator, which yields dicts with the responses from regolo.ai.
-        :return for stream=True, full_output=True: Generator, which yields tuples of role, content of response.
-        :return for stream=False, full_output=False: String with response from regolo.ai.
-        :return for stream=False, full_output=True: Tuple which consists of role and content of response.
+        :return for stream=True, full_output=True: Generator, which yields tuples of Role, Content of response.
+        :return for stream=False, full_output=False: String, with response from regolo.ai.
+        :return for stream=False, full_output=True: Tuple, which consists of role and content of response.
         """
 
         if user_prompt is not None:
@@ -519,10 +519,10 @@ class RegoloClient:
         :param model: The regolo.ai image model to use. (Optional)
         :param api_key: The API key for regolo.ai. (Optional)
         :param n: The number of images to generate. (Defaults to 1)
-        :param quality: The quality of the image that will be generated. hd creates images with finer details and greater consistency across the image. (Defaults to "standard")
+        :param quality: The quality of the image that will be generated. The "hd" value creates images with finer details and greater consistency across the image. (Defaults to "standard")
         :param size: The size of the generated images.
         :param style: The style of the generated images. (Defaults to "vivid")
-        :param client: HTTP client for making requests. (Optional)
+        :param client: The HTTP client for making requests. (Optional)
         :param base_url: Base URL of the regolo HTTP server. (Defaults to REGOLO_URL)
         :param full_output: Whether to return full response. (Defaults to False)
 
@@ -530,14 +530,14 @@ class RegoloClient:
         :return full_output=False: List containing the images decoded as bytes.
         """
 
-        # Use default API key if not provided
+        # Use the default API key if not provided
         if api_key is None:
             api_key = regolo.default_key
 
         # Validate the API key
         api_key = KeysHandler.check_key(api_key)
 
-        # Use default model if not specified
+        # Use the default model if not specified
         if model is None:
             model = regolo.default_image_model
 
@@ -590,7 +590,7 @@ class RegoloClient:
 
         :param prompt: The text prompt for image generation.
         :param n: The number of images to generate. (Defaults to 1)
-        :param quality: The quality of the image that will be generated. hd creates images with finer details and greater consistency across the image. (Defaults to "standard")
+        :param quality: The quality of the image that will be generated. The "hd" value creates images with finer details and greater consistency across the image. (Defaults to "standard")
         :param size: The size of the generated images.
         :param style: The style of the generated images. (Defaults to "vivid")
         :param full_output: Whether to return full response. (Defaults to False)
@@ -628,7 +628,7 @@ class RegoloClient:
         :param base_url: Base URL of the regolo HTTP server. (Optional)
         :param full_output: Whether to return full response. (Defaults to False)
         """
-        # Use default API key if none is provided
+        # Use the default API key if none is provided
         if api_key is None:
             api_key = regolo.default_key
 
@@ -677,7 +677,7 @@ class RegoloClient:
         """
         return self.static_embeddings(input_text=input_text,
                                       full_output=full_output,
-                                      model=self.instance.image_model,
+                                      model=self.instance.embedder_model,
                                       api_key=self.instance.api_key,
                                       client=self.instance.client,
                                       base_url=self.instance.base_url)

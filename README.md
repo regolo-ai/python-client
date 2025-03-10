@@ -28,7 +28,7 @@ regolo.default_model = "meta-llama/Llama-3.3-70B-Instruct"
 This ensures that all `RegoloClient` instances and static functions will
 use the specified API key and model.
 
-Still, you can create run methods by passing model and key directly.
+Still, you can create run methods by inserting model and key directly.
 
  ## **3. Perform a basic request**
 
@@ -176,4 +176,30 @@ img_bytes = client.create_image(prompt="A cat in Rome")[0]
 image = Image.open(BytesIO(img_bytes))
 
 image.show()
+```
+
+## **Handling embedder models**
+
+**Without client:**
+```python
+import regolo
+
+regolo.default_key = "<EXAMPLE_KEY>"
+regolo.default_embedder_model = "gte-Qwen2"
+
+
+embeddings = regolo.static_embeddings(input_text=["test", "test1"])
+
+print(embeddings)
+```
+
+**With client:**
+```python
+import regolo
+
+client = regolo.RegoloClient(api_key="<EXAMPLE_KEY>", embedder_model="gte-Qwen2")
+
+embeddings = client.embeddings(input_text=["test", "test1"])
+
+print(embeddings)
 ```
