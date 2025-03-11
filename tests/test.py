@@ -6,8 +6,9 @@ import pytest
 
 import regolo
 
+from dotenv import load_dotenv
 
-dotenv.load()
+load_dotenv()
 
 API_KEY = os.environ.get("TEST_KEY")
 
@@ -19,7 +20,7 @@ regolo.default_model = "Llama-3.3-70B-Instruct"
 
 # testing with mock methods
 def test_completions():
-    dotenv.load()
+    load_dotenv()
     regolo.default_key = os.getenv("TEST_KEY")
     regolo.default_model = "Llama-3.3-70B-Instruct"
     mock_response = "Rome is the capital city of Italy."
@@ -30,7 +31,7 @@ def test_completions():
 
 
 def test_chat_completions():
-    dotenv.load()
+    load_dotenv()
     regolo.default_key = os.getenv("TEST_KEY")
     regolo.default_model = "Llama-3.3-70B-Instruct"
     mock_response = "Rome is the capital city of Italy."
@@ -44,7 +45,7 @@ def test_chat_completions():
 
 
 def test_static_completions():
-    dotenv.load()
+    load_dotenv()
     regolo.default_key = os.getenv("TEST_KEY")
     regolo.default_model = "Llama-3.3-70B-Instruct"
     client = regolo.RegoloClient()
@@ -53,7 +54,7 @@ def test_static_completions():
 
 
 def test_static_chat_completions():
-    dotenv.load()
+    load_dotenv()
     regolo.default_key = os.getenv("TEST_KEY")
     regolo.default_model = "Llama-3.3-70B-Instruct"
     client = regolo.RegoloClient()
