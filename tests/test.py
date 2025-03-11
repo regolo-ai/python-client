@@ -1,7 +1,6 @@
 import os
 from unittest.mock import MagicMock
 
-import dotenv
 import pytest
 
 import regolo
@@ -41,10 +40,10 @@ def test_chat_completions():
     assert response == mock_response
 
 
-# testing evaluation of actual response from client
+# testing evaluation of actual response from a client
 
 
-def test_static_completions():
+def test_static_completions() -> None:
     load_dotenv()
     regolo.default_key = os.getenv("TEST_KEY")
     regolo.default_model = "Llama-3.3-70B-Instruct"
@@ -53,10 +52,31 @@ def test_static_completions():
     assert type(response) == str
 
 
-def test_static_chat_completions():
+def test_static_chat_completions() -> None:
     load_dotenv()
     regolo.default_key = os.getenv("TEST_KEY")
     regolo.default_model = "Llama-3.3-70B-Instruct"
     client = regolo.RegoloClient()
     response = client.static_chat_completions(messages=[{"role": "user", "content": "Tell me something about rome"}])
     assert type(response) == tuple
+
+def test_static_image_create() -> None:
+    from io import BytesIO
+    from PIL import Image
+
+    import regolo
+
+    regolo.default_key = os.getenv("TEST_KEY")
+    regolo.default_image_model = "FLUX.1-dev"
+    client = regolo.RegoloClient()
+    img_bytes = client.create_image(prompt="A cat in Rome")[0]
+    image = Image.open(BytesIO(img_bytes))
+    assert isinstance(image, Image.Image)
+
+def test_static_embeddings() -> None:
+    import regolo
+    regolo.default_key = os.getenv("TEST_KEY")
+    regolo.default_embedder_model ="gte-Qwen2"
+    client = regolo.RegoloClient()
+    embeddings = client.embeddings(input_text=["test", "test1"])
+    assert type(embeddings) == list
