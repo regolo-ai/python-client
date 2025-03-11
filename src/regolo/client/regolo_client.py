@@ -23,12 +23,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-REGOLO_URL = os.getenv("REGOLO_URL")
-COMPLETIONS_URL_PATH = os.getenv("COMPLETIONS_URL_PATH")
-CHAT_COMPLETIONS_URL_PATH = os.getenv("CHAT_COMPLETIONS_URL_PATH")
-IMAGE_GENERATION_URL_PATH = os.getenv("IMAGE_GENERATION_URL_PATH")
-EMBEDDINGS_URL_PATH = os.getenv("EMBEDDINGS_URL_PATH")
-
 timeout = 500
 
 Role: TypeAlias = str
@@ -80,8 +74,8 @@ class RegoloClient:
         embedder_model = regolo.default_embedder_model if embedder_model is None else embedder_model
         image_model = regolo.default_image_model if image_model is None else image_model
         api_key = regolo.default_key if api_key is None else api_key
-        base_url = REGOLO_URL if alternative_url is None else alternative_url
-        client = httpx.Client(base_url=base_url) if pre_existent_client is None else pre_existent_client
+        base_url = None if alternative_url is None else alternative_url
+        client = httpx.Client(base_url=base_url if base_url is not None else os.getenv("REGOLO_URL")) if pre_existent_client is None else pre_existent_client
 
         self.instance = RegoloInstance(model=model,
                                        embedder_model=embedder_model,
@@ -104,7 +98,7 @@ class RegoloClient:
             print(e)
 
     @staticmethod
-    def get_available_models(api_key: str, base_url: str=REGOLO_URL) -> List[str]:
+    def get_available_models(api_key: str, base_url: str=os.getenv("REGOLO_URL")) -> List[str]:
         """
         Gets all available models on regolo.ai.
 
@@ -180,7 +174,7 @@ class RegoloClient:
                            top_p: Optional[float] = None,
                            top_k: Optional[int] = None,
                            client: Optional[httpx.Client] = None,
-                           base_url: str = REGOLO_URL,
+                           base_url: str = os.getenv("REGOLO_URL"),
                            full_output: bool = False) -> str | Generator[Any, Any, None]:
         """
         Will return generators for stream=True and values for stream=False
@@ -253,14 +247,14 @@ class RegoloClient:
                 payload=payload,
                 headers=headers,
                 full_output=full_output,
-                search_url=COMPLETIONS_URL_PATH,
+                search_url=os.getenv("COMPLETIONS_URL_PATH"),
                 output_handler=handle_search_text_completions
             )
         else:
             # Send a synchronous POST request
             response = safe_post(
                 client=client,
-                url_to_query=f"{base_url}{COMPLETIONS_URL_PATH}",
+                url_to_query=f"{base_url}{os.getenv("COMPLETIONS_URL_PATH")}",
                 json_to_query=payload,
                 headers_to_query=headers
             )
@@ -297,6 +291,10 @@ class RegoloClient:
         :return for stream=False, full_output=False: String with response from regolo.ai.
         :return for stream=False, full_output=True: String containing the text of response.
         """
+        if self.instance.get_base_url() is None:
+            base_url = os.getenv("REGOLO_URL")
+        else:
+            base_url = self.instance.get_base_url()
         response = self.static_completions(prompt=prompt,
                                            model=self.instance.get_model(),
                                            api_key=self.instance.get_api_key(),
@@ -305,8 +303,8 @@ class RegoloClient:
                                            temperature=temperature,
                                            top_p=top_p,
                                            top_k=top_k,
-                                           client=self.instance.client,
-                                           base_url=self.instance.base_url,
+                                           client=self.instance.get_client(),
+                                           base_url=base_url,
                                            full_output=full_output)
 
         return response
@@ -323,7 +321,7 @@ class RegoloClient:
                                 top_p: Optional[float] = None,
                                 top_k: Optional[int] = None,
                                 client: Optional[httpx.Client] = None,
-                                base_url: str = REGOLO_URL,
+                                base_url: str = os.getenv("REGOLO_URL"),
                                 full_output: bool = False
                                 ) -> Generator[Any, Any, None] | tuple[Role, Content] | dict:
         """
@@ -411,14 +409,14 @@ class RegoloClient:
                 payload=payload,
                 headers=headers,
                 full_output=full_output,
-                search_url=CHAT_COMPLETIONS_URL_PATH,
+                search_url=os.getenv("CHAT_COMPLETIONS_URL_PATH"),
                 output_handler=handle_search_text_chat_completions
             )
         else:
             # Send a synchronous POST request
             response = safe_post(
                 client=client,
-                url_to_query=f"{base_url}{CHAT_COMPLETIONS_URL_PATH}",
+                url_to_query=f"{base_url}{os.getenv("CHAT_COMPLETIONS_URL_PATH")}",
                 json_to_query=payload,
                 headers_to_query=headers
             ).json()
@@ -478,6 +476,11 @@ class RegoloClient:
         if user_prompt is not None:
             self.instance.add_prompt_as_role(prompt=user_prompt, role="user")
 
+        if self.instance.get_base_url() is None:
+            base_url = os.getenv("REGOLO_URL")
+        else:
+            base_url = self.instance.get_base_url()
+
         response = self.static_chat_completions(messages=self.instance.get_conversation(),
                                                 model=self.instance.get_model(),
                                                 stream=stream,
@@ -487,7 +490,7 @@ class RegoloClient:
                                                 top_p=top_p,
                                                 top_k=top_k,
                                                 client=self.instance.get_client(),
-                                                base_url=self.instance.base_url,
+                                                base_url=base_url,
                                                 full_output=full_output)
 
         if stream is True:
@@ -514,7 +517,7 @@ class RegoloClient:
                             size: str = "1024x1024",
                             style: str = "realistic",
                             client: Optional[httpx.Client] = None,
-                            base_url: str = REGOLO_URL,
+                            base_url: str = os.getenv("REGOLO_URL"),
                             full_output: bool = False) -> list[bytes] | dict:
         """
         Generates an image based on the given prompt using the regolo.ai image model.
@@ -571,7 +574,7 @@ class RegoloClient:
         # Send a synchronous POST request
         response = safe_post(
             client=client,
-            url_to_query=f"{base_url}{IMAGE_GENERATION_URL_PATH}",
+            url_to_query=f"{base_url}{os.getenv("IMAGE_GENERATION_URL_PATH")}",
             json_to_query=payload,
             headers_to_query=headers
         ).json()
@@ -602,15 +605,21 @@ class RegoloClient:
         :return full_output=True: Dict containing the text of response.
         :return full_output=False: List containing the images decoded as bytes.
         """
+
+        if self.instance.get_base_url() is None:
+            base_url = os.getenv("REGOLO_URL")
+        else:
+            base_url = self.instance.get_base_url()
+
         response = self.static_create_image(prompt=prompt,
-                                            model=self.instance.image_model,
-                                            api_key=self.instance.api_key,
+                                            model=self.instance.get_image_model(),
+                                            api_key=self.instance.get_api_key(),
                                             n=n,
                                             quality=quality,
                                             size=size,
                                             style=style,
-                                            client=self.instance.client,
-                                            base_url=self.instance.base_url,
+                                            client=self.instance.get_client(),
+                                            base_url=base_url,
                                             full_output=full_output)
 
         return response
@@ -621,8 +630,8 @@ class RegoloClient:
                           model: Optional[str] = None,
                           api_key: Optional[str] = None,
                           client: Optional[httpx.Client] = None,
-                          base_url: str = REGOLO_URL,
-                          full_output: bool = False) -> dict | Any:
+                          base_url: str = os.getenv("REGOLO_URL"),
+                          full_output: bool = False) -> dict | list:
         """
 
         :param input_text: The text to be embedded.
@@ -663,7 +672,7 @@ class RegoloClient:
 
         response = safe_post(
             client=client,
-            url_to_query=f"{base_url}{EMBEDDINGS_URL_PATH}",
+            url_to_query=f"{base_url}{os.getenv("EMBEDDINGS_URL_PATH")}",
             json_to_query=payload,
             headers_to_query=headers
         )
@@ -672,16 +681,23 @@ class RegoloClient:
             return response.json()
         else:
             return response.json()["data"]
+
     def embeddings(self,
                    input_text: list[str] | str,
-                   full_output: bool = False,):
+                   full_output: bool = False) -> dict | list:
         """
         :param input_text: The text to be embedded.
         :param full_output: Whether to return full response. (Defaults to False)
         """
+        if self.instance.get_base_url() is None:
+            base_url = os.getenv("REGOLO_URL")
+        else:
+            base_url = self.instance.get_base_url()
+
+
         return self.static_embeddings(input_text=input_text,
                                       full_output=full_output,
-                                      model=self.instance.embedder_model,
-                                      api_key=self.instance.api_key,
-                                      client=self.instance.client,
-                                      base_url=self.instance.base_url)
+                                      model=self.instance.get_embedder_model(),
+                                      api_key=self.instance.get_api_key(),
+                                      client=self.instance.get_client(),
+                                      base_url=base_url)

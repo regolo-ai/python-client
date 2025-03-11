@@ -64,6 +64,30 @@ class RegoloInstance:
         """
         return self.model
 
+    def get_base_url(self) -> str:
+        """
+        Returns the base url.
+
+        :return: The base url.
+        """
+        return self.base_url
+
+    def get_image_model(self) -> str:
+        """
+        Returns the image model.
+
+        :return: The image name as a string.
+        """
+        return self.image_model
+
+    def get_embedder_model(self) -> str:
+        """
+        Returns the embedder model.
+
+        :return: The embedder model as a string.
+        """
+        return self.embedder_model
+
     def change_model(self, new_model: str) -> None:
         """
         Changes the model of this instance to a new one.
