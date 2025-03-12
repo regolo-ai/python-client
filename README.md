@@ -43,6 +43,73 @@ print(regolo.static_chat_completions(messages=[{"role": "user", "content": "Tell
 ```
 
 ---
+# **Loading envs**
+
+#### if you want to interact with this client through environment variables, you can follow this reference:
+
+### Default values
+
+- "API_KEY"
+
+You can use this environment variable to insert the default_key.
+You can load it after importing regolo using regolo.key_load_from_env_if_exists().
+Using it is equivalent to updating regolo.default_key when you import regolo.
+
+- "LLM"
+
+You can use this environment variable to insert the default_model.
+You can load it after importing regolo using regolo.default_model_load_from_env_if_exists().
+This is equivalent to updating regolo.default_model when you import regolo.
+
+- "IMAGE_MODEL"
+
+You can use this environment variable to insert the default_image_model.
+You can load it after importing regolo using regolo.default_image_load_from_env_if_exists().
+This is equivalent to updating regolo.default_image_model when you import regolo.
+
+- "EMBEDDER_MODEL"
+
+You can use this environment variable to insert the default_embedder_model.
+You can load it after importing regolo using regolo.default_embedder_load_from_env_if_exists().
+This is equivalent to updating regolo.default_embedder_model when you import regolo.
+
+
+> [!TIP]
+> All the environment variables that are equivalent to a default value in regolo __init__ can be updated together
+> through regolo.try_loading_from_env().
+> 
+> It does nothing but run all the load_from_env methods al once.
+
+### Endpoints
+
+- "REGOLO_URL"
+
+You can use this env variable to set the default base_url used by regolo client and its static methods.
+
+- "COMPLETIONS_URL_PATH"
+
+You can use this env variable to set the base_url used by regolo client and its static methods.
+
+- "CHAT_COMPLETIONS_URL_PATH"
+
+You can use this env variable to set the chat completions endpoint used by regolo client and its static methods.
+
+- "IMAGE_GENERATION_URL_PATH"
+
+You can use this env variable to set the image generation endpoint used by regolo client and its static methods.
+
+- "EMBEDDINGS_URL_PATH"
+
+You can use this env variable to set the embedding generation endpoint used by regolo client and its static methods.
+
+
+> [!TIP]
+> The endpoints environment variables can be changed during execution.
+> Since the client works directly with them.
+> 
+> However, you are likely not to want to change them, since they are tied to how we handle our endpoints. 
+
+---
 
 # **Other usages**
 
