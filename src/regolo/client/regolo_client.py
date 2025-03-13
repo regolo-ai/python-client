@@ -21,7 +21,7 @@ from regolo.keys.keys import KeysHandler
 from regolo.models.models import ModelsHandler
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=False)
 
 timeout = 500
 
@@ -75,7 +75,7 @@ class RegoloClient:
         image_model = regolo.default_image_model if image_model is None else image_model
         api_key = regolo.default_key if api_key is None else api_key
         base_url = None if alternative_url is None else alternative_url
-        client = httpx.Client(base_url=base_url if base_url is not None else os.getenv("REGOLO_URL")) if pre_existent_client is None else pre_existent_client
+        client = httpx.Client(base_url=os.getenv("REGOLO_URL") if base_url is None else base_url) if pre_existent_client is None else pre_existent_client
 
         self.instance = RegoloInstance(model=model,
                                        embedder_model=embedder_model,
