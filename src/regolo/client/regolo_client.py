@@ -19,9 +19,32 @@ from regolo.instance.structures.conversation_model import Conversation
 from regolo.instance.structures.conversation_model import ConversationLine
 from regolo.keys.keys import KeysHandler
 from regolo.models.models import ModelsHandler
-from dotenv import load_dotenv
 
-load_dotenv(override=False)
+REGOLO_URL="https://api.regolo.ai"
+COMPLETIONS_URL_PATH="/v1/completions"
+CHAT_COMPLETIONS_URL_PATH="/v1/chat/completions"
+IMAGE_GENERATION_URL_PATH="/v1/images/generations"
+EMBEDDINGS_URL_PATH="/v1/embeddings"
+
+os.environ["REGOLO_URL"] = REGOLO_URL \
+    if os.getenv("REGOLO_URL") is None \
+    else os.getenv("REGOLO_URL")
+
+os.environ["COMPLETIONS_URL_PATH"] = COMPLETIONS_URL_PATH \
+    if os.getenv("COMPLETIONS_URL_PATH") is None \
+    else os.getenv("COMPLETIONS_URL_PATH")
+
+os.environ["CHAT_COMPLETIONS_URL_PATH"] = CHAT_COMPLETIONS_URL_PATH \
+    if os.getenv("CHAT_COMPLETIONS_URL_PATH") is None \
+    else os.getenv("CHAT_COMPLETIONS_URL_PATH")
+
+os.environ["IMAGE_GENERATION_URL_PATH"] = IMAGE_GENERATION_URL_PATH \
+    if os.getenv("IMAGE_GENERATION_URL_PATH") is None\
+    else os.getenv("IMAGE_GENERATION_URL_PATH")
+
+os.environ["EMBEDDINGS_URL_PATH"] = EMBEDDINGS_URL_PATH \
+    if os.getenv("EMBEDDINGS_URL_PATH") is None \
+    else os.getenv("EMBEDDINGS_URL_PATH")
 
 timeout = 500
 

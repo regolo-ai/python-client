@@ -22,7 +22,7 @@ To avoid manually passing the API key and model in every request, you can set th
 
 ```python
 regolo.default_key = "<EXAMPLE_KEY>"
-regolo.default_model = "meta-llama/Llama-3.3-70B-Instruct"
+regolo.default_model = "Llama-3.3-70B-Instruct"
 ```
 
 This ensures that all `RegoloClient` instances and static functions will
@@ -121,7 +121,7 @@ You can use this env variable to set the embedding generation endpoint used by r
 ```python
 import regolo
 regolo.default_key = "<EXAMPLE_KEY>"
-regolo.default_model = "meta-llama/Llama-3.3-70B-Instruct"
+regolo.default_model = "Llama-3.3-70B-Instruct"
 
 # Completions
 
@@ -152,12 +152,12 @@ while True:
 ```python
 import regolo
 regolo.default_key = "<EXAMPLE_KEY>"
-regolo.default_model = "meta-llama/Llama-3.3-70B-Instruct"
+regolo.default_model = "Llama-3.3-70B-Instruct"
 
 # Completions
 
 client = regolo.RegoloClient()
-response = client.completions("Tell me about Rome in a concise manner", full_output=True, stream=True)
+response = client.completions("Tell me about Rome in a concise manner", full_output=False, stream=True)
 
 while True:
     try:
@@ -168,7 +168,7 @@ while True:
 # Chat completions
 
 client = regolo.RegoloClient()
-response = client.run_chat(user_prompt="Tell me about Rome in a concise manner", full_output=True, stream=True)
+response = client.run_chat(user_prompt="Tell me about Rome in a concise manner", full_output=False, stream=True)
 
 while True:
     try:
@@ -186,7 +186,7 @@ while True:
 import regolo
 
 regolo.default_key = "<EXAMPLE_KEY>"
-regolo.default_model = "meta-llama/Llama-3.3-70B-Instruct"
+regolo.default_model = "Llama-3.3-70B-Instruct"
 
 client = regolo.RegoloClient()
 
