@@ -20,11 +20,11 @@ from regolo.instance.structures.conversation_model import ConversationLine
 from regolo.keys.keys import KeysHandler
 from regolo.models.models import ModelsHandler
 
-REGOLO_URL="https://api.regolo.ai"
-COMPLETIONS_URL_PATH="/v1/completions"
-CHAT_COMPLETIONS_URL_PATH="/v1/chat/completions"
-IMAGE_GENERATION_URL_PATH="/v1/images/generations"
-EMBEDDINGS_URL_PATH="/v1/embeddings"
+REGOLO_URL = "https://api.regolo.ai"
+COMPLETIONS_URL_PATH = "/v1/completions"
+CHAT_COMPLETIONS_URL_PATH = "/v1/chat/completions"
+IMAGE_GENERATION_URL_PATH = "/v1/images/generations"
+EMBEDDINGS_URL_PATH = "/v1/embeddings"
 
 os.environ["REGOLO_URL"] = REGOLO_URL \
     if os.getenv("REGOLO_URL") is None \
@@ -39,7 +39,7 @@ os.environ["CHAT_COMPLETIONS_URL_PATH"] = CHAT_COMPLETIONS_URL_PATH \
     else os.getenv("CHAT_COMPLETIONS_URL_PATH")
 
 os.environ["IMAGE_GENERATION_URL_PATH"] = IMAGE_GENERATION_URL_PATH \
-    if os.getenv("IMAGE_GENERATION_URL_PATH") is None\
+    if os.getenv("IMAGE_GENERATION_URL_PATH") is None \
     else os.getenv("IMAGE_GENERATION_URL_PATH")
 
 os.environ["EMBEDDINGS_URL_PATH"] = EMBEDDINGS_URL_PATH \
@@ -98,7 +98,8 @@ class RegoloClient:
         image_model = regolo.default_image_model if image_model is None else image_model
         api_key = regolo.default_key if api_key is None else api_key
         base_url = None if alternative_url is None else alternative_url
-        client = httpx.Client(base_url=os.getenv("REGOLO_URL") if base_url is None else base_url) if pre_existent_client is None else pre_existent_client
+        client = httpx.Client(base_url=os.getenv(
+            "REGOLO_URL") if base_url is None else base_url) if pre_existent_client is None else pre_existent_client
 
         self.instance = RegoloInstance(model=model,
                                        embedder_model=embedder_model,
@@ -121,7 +122,7 @@ class RegoloClient:
             print(e)
 
     @staticmethod
-    def get_available_models(api_key: str, base_url: str=os.getenv("REGOLO_URL")) -> List[str]:
+    def get_available_models(api_key: str, base_url: str = os.getenv("REGOLO_URL")) -> List[str]:
         """
         Gets all available models on regolo.ai.
 
@@ -716,7 +717,6 @@ class RegoloClient:
             base_url = os.getenv("REGOLO_URL")
         else:
             base_url = self.instance.get_base_url()
-
 
         return self.static_embeddings(input_text=input_text,
                                       full_output=full_output,

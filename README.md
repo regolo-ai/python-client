@@ -77,7 +77,7 @@ This is equivalent to updating regolo.default_embedder_model when you import reg
 > [!TIP]
 > All "default" environment variables can be updated together
 > through regolo.try_loading_from_env().
-> 
+>
 > It does nothing but run all the load_from_env methods al once.
 
 ### Endpoints
@@ -106,8 +106,8 @@ You can use this env variable to set the embedding generation endpoint used by r
 > [!TIP]
 > The "endpoints" environment variables can be changed during execution.
 > Since the client works directly with them.
-> 
-> However, you are likely not to want to change them, since they are tied to how we handle our endpoints. 
+>
+> However, you are likely not to want to change them, since they are tied to how we handle our endpoints.
 
 ---
 
