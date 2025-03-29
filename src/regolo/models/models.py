@@ -25,9 +25,14 @@ class ModelsHandler:
         headers = {"Authorization": f"{api_key}"}
 
         # Fetch the models' information from the Regolo server
-        response = httpx.get(f"{base_url}/models", headers=headers).json()
+        response = httpx.get(f"{base_url}/models", headers=headers)
 
-        models_info = response["data"]
+        if response.status_code == 401:
+            raise Exception("Authentication failed. Couldn't fetch models")
+        if response.status_code != 200:
+            raise Exception("Failed to fetch models")
+
+        models_info = response.json()["data"]
         # Return a list of models from the fetched models data
         return [model["id"] for model in models_info]
 
