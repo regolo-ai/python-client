@@ -48,6 +48,8 @@ def chat(no_hide, disable_newlines):
         # ask user input
         user_input = click.prompt("user")
 
+        if user_input == "bye":
+            exit(0)
         # get chat response and save in the client
         response = client.run_chat(user_input, stream=True, full_output=False)
 
