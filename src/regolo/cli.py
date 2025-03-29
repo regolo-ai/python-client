@@ -6,16 +6,17 @@ import pprint
 
 from regolo import RegoloClient
 
+
 @click.group()
 def cli():
     pass
 
+
 @click.command()
 @click.option('--no-hide', is_flag=True, default=False, help='Do not hide the API key when typing')
-@click.option('--disable-newlines', is_flag=True, default=False, help='Disable new lines, they will be replaced with space character')
+@click.option('--disable-newlines', is_flag=True, default=False,
+              help='Disable new lines, they will be replaced with space character')
 def chat(no_hide, disable_newlines):
-
-
     API_KEY = click.prompt("Insert your regolo API key", hide_input=not no_hide)
     available_models = regolo.RegoloClient.get_available_models(API_KEY)
 
@@ -66,4 +67,6 @@ def chat(no_hide, disable_newlines):
                 break
 
         click.echo("\n")
+
+
 cli.add_command(chat)
