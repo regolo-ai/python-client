@@ -11,12 +11,12 @@ version = "1.1.0"
 description = "Simple client to interact with regolo.ai"
 readme = "README.md"
 keywords = [ "chat", "llm", "regolo" ]
-license = { file = "LICENSE" }
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [ { name = "regolo.ai", email = "dev@regolo.ai" } ]
 requires-python = ">=3.12"
 
 classifiers = [
-  "License :: OSI Approved :: MIT License",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.12",
@@ -58,3 +58,7 @@ push = true
 "src/regolo/__init__.py" = [
   '__version__ = "{version}"',
 ]
+
+
+[project.scripts]
+regolo = "regolo.cli:cli"
