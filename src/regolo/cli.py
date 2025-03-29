@@ -1,5 +1,3 @@
-from pygments.lexer import default
-
 import regolo
 import click
 import pprint
