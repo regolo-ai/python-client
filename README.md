@@ -41,6 +41,46 @@ print(regolo.static_completions(prompt="Tell me something about Rome."))
 ```python
 print(regolo.static_chat_completions(messages=[{"role": "user", "content": "Tell me something about rome"}]))
 ```
+---
+# **Chatting through regolo chat CLI**
+## **1. What is the regolo chat cli?**
+
+To simplify basic interactions with our LLMs, we offer you the possibility to perform request without writing code.
+To do that, you only need to install python and, if you want, create a venv with the commands:
+```
+pip install virtualenv # install virtualenv in python
+cd <the directory that'll contain your venv> # choose the starting directory for your venv
+python -m venv env # create the venv in the env subdirectory 
+```
+
+To use your venv, you'll go to the env subdirectory and use the source command activate it:
+```
+source bin/activate
+```
+
+At this point, you can run a simple chat with:
+```
+regolo chat
+```
+
+The CLI will guide you through inserting your API key and desired model. 
+
+It is worth mentioning our "chat" command has support for some flags (you can use more of them at the same time).
+
+- "--no-hide", used to see your API key while typing
+```
+regolo chat --no-hide
+```
+
+- "--disable-newlines", to use if you prefer your AI to output spaces instead of new lines, which could make the
+response text too large for your environment.
+```
+regolo chat --disable-newlines
+```
+
+
+
+
 
 ---
 # **Loading envs**
