@@ -26,6 +26,7 @@ dependencies = [
   "json-repair~=0.35.0",
   "pydantic~=2.10.6",
   "python-dotenv",
+  "click==8.1.8"
 ]
 
 optional-dependencies.dev = [
