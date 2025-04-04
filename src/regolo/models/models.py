@@ -10,7 +10,7 @@ class ModelsHandler:
     """
 
     @staticmethod
-    def get_models(base_url: str, api_key: str) -> list[str]:
+    def get_models(base_url: str, api_key: str, model_info: bool=False) -> list[str] | list[dict]:
         """
         Retrieves the list of available models from the Regolo server.
 
@@ -19,22 +19,37 @@ class ModelsHandler:
 
         :param base_url: The Regolo server base URL.
         :param api_key: The API key for the Regolo server authentication.
+        :param model_info: Whether to retrieve information about the model (Defaults to False)
 
         :return: A list of models (strings).
         """
         headers = {"Authorization": f"{api_key}"}
 
         # Fetch the models' information from the Regolo server
-        response = httpx.get(f"{base_url}/models", headers=headers)
+        if model_info:
+            response = httpx.get(f"{base_url}/model/info", headers=headers)
 
-        if response.status_code == 401:
-            raise Exception("Authentication failed. Couldn't fetch models")
-        if response.status_code != 200:
-            raise Exception("Failed to fetch models")
+            if response.status_code == 401:
+                raise Exception("Authentication failed. Couldn't fetch models")
+            if response.status_code != 200:
+                raise Exception("Failed to fetch models")
+            models_info = response.json()["data"]
 
-        models_info = response.json()["data"]
-        # Return a list of models from the fetched models data
-        return [model["id"] for model in models_info]
+            # Return a list of models from the fetched models data
+            return models_info
+
+        else:
+            response = httpx.get(f"{base_url}/models", headers=headers)
+
+            if response.status_code == 401:
+                raise Exception("Authentication failed. Couldn't fetch models")
+            if response.status_code != 200:
+                raise Exception("Failed to fetch models")
+
+            models_info = response.json()["data"]
+
+            # Return a list of models from the fetched models data
+            return [model["id"] for model in models_info]
 
     @staticmethod
     def check_model(model: str, base_url: str, api_key: str) -> str:
