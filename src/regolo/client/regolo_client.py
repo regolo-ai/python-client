@@ -122,20 +122,22 @@ class RegoloClient:
             print(e)
 
     @staticmethod
-    def get_available_models(api_key: str, base_url: str = os.getenv("REGOLO_URL")) -> List[str]:
+    def get_available_models(api_key: str, base_url: str = os.getenv("REGOLO_URL"), model_info: bool=False) -> List[str] | List[dict]:
         """
         Gets all available models on regolo.ai.
 
         :param base_url: Base URL of the regolo HTTP server.
-        :param api_key: The API key for regolo.ai.
+        :param api_key: The API key for regolo.ai (Defaults to regolo.default_key if it exists)
+        :param model_info: Whether to retrieve information about the model (Defaults to False)
 
-        :return: A list of available models.
+        :return model_info=False: A list of available models (list[str])
+        :return model_info=True: A list of available models and their information (list[dict])
         """
 
         # Validate API key
         api_key = KeysHandler.check_key(api_key)
 
-        return ModelsHandler.get_models(base_url=base_url, api_key=api_key)
+        return ModelsHandler.get_models(base_url=base_url, api_key=api_key, model_info=model_info)
 
     @staticmethod
     def create_stream_generator(client: httpx.Client,
@@ -552,7 +554,7 @@ class RegoloClient:
         :param n: The number of images to generate. (Defaults to 1)
         :param quality: The quality of the image that will be generated. The "hd" value creates images with finer details and greater consistency across the image. (Defaults to "standard")
         :param size: The size of the generated images.
-        :param style: The style of the generated images. (Defaults to "vivid")
+        :param style: The style of the generated images. (Defaults to "realistic")
         :param client: The HTTP client for making requests. (Optional)
         :param base_url: Base URL of the regolo HTTP server. (Defaults to REGOLO_URL)
         :param full_output: Whether to return full response. (Defaults to False)
