@@ -97,8 +97,8 @@ def chat(no_hide: bool, api_key:str, disable_newlines: bool):
 
 @click.command("create-image", help='Creates images')
 @click.option('--api-key', required=True, help='The API key used generate.')
+@click.option('--model', required=True, help="The number of images to generate. (Defaults to 1)")
 @click.option('--save-path', help='The path in which to save the images. (Defaults to ../images)')
-@click.option('--model', help="The number of images to generate. (Defaults to 1)")
 @click.option('--prompt', default="A generic image", help='The text prompt for image generation. (Defaults to "A generic image")')
 @click.option('--n', default=1, help='The number of images to generate. (Defaults to 1)')
 @click.option('--quality', default="standard", help="The quality of the image that will be generated. The 'hd' value creates images with finer details and greater consistency across the image. (Defaults to 'standard'')")
