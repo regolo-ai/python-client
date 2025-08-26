@@ -19,12 +19,11 @@ def cli():
 
 @click.command("get-available-models", help="Gets available models")
 @click.option('--api-key', required=True, help='The API key used to query Regolo.')
-@click.option('--model-type', default="", required=False, type=click.Choice(['', 'text', 'image_generation', "embedding"]), help='the type of the models you want to retrieve (returns all by default)')
+@click.option('--model-type', default="", required=False, type=click.Choice(['', 'chat', 'image_generation', "embedding", "audio_transcription"]), help='Thee type of the models you want to retrieve (returns all by default)')
 def get_available_models(api_key: str, model_type: str):
     available_models: list[dict] = regolo.RegoloClient.get_available_models(api_key, model_info=True)
     output_models: list[tuple] = []
     for model in available_models:
-        model["model_info"]["mode"] = "text" if model["model_info"]["mode"] is None else model["model_info"]["mode"]
         if model_type in model["model_info"]["mode"]:
             output_models.append((model["model_name"], model["model_info"]["mode"]))
     click.echo(pprint.pformat(output_models))
@@ -32,10 +31,12 @@ def get_available_models(api_key: str, model_type: str):
 
 @click.command("chat", help="Allows chatting with LLMs")
 @click.option('--no-hide',required=False, is_flag=True, default=False, help='Do not hide the API key when typing')
+@click.option('--api-key', required=False, help='The API key used to chat with Regolo.')
 @click.option('--disable-newlines', required=False, is_flag=True, default=False,
               help='Disable new lines, they will be replaced with space character')
-def chat(no_hide: bool, disable_newlines: bool):
-    api_key = click.prompt("Insert your regolo API key", hide_input=not no_hide)
+def chat(no_hide: bool, api_key:str, disable_newlines: bool):
+    if not api_key:
+        api_key = click.prompt("Insert your regolo API key", hide_input=not no_hide)
     available_models: list[dict] = regolo.RegoloClient.get_available_models(api_key, model_info=True)
 
     if len(available_models) == 0:
@@ -45,17 +46,21 @@ def chat(no_hide: bool, disable_newlines: bool):
     available_models_dict = {}
     model_number = 1
     for model in available_models:
-        if model["model_info"]["mode"] is None:
-            available_models_dict[model_number] = model
-            available_models_dict[model_number] = model["model_name"]
-            model_number += 1
+        mode = model["model_info"]["mode"]
+        match mode:
+            case None:
+                pass
+            case "chat":
+                available_models_dict[model_number] = model
+                available_models_dict[model_number] = [model["model_name"], mode]
+                model_number += 1
 
     click.echo(f"The models you can use are:\n {pprint.pformat(available_models_dict)}")
 
     prompt_model_number = click.prompt("Write the number of the model to use")
 
     try:
-        model = available_models_dict[int(prompt_model_number)]
+        model = available_models_dict[int(prompt_model_number)][0]
     except ValueError:
         raise Exception("Not a number")
     except KeyError:

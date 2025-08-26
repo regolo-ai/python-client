@@ -65,7 +65,7 @@ regolo chat
 
 The CLI will guide you through inserting your API key and desired model. 
 
-It is worth mentioning our "chat" command has support for some flags (you can use more of them at the same time).
+It is worth mentioning that our "regolo chat" command has support for some arguments.
 
 - "--no-hide", used to see your API key while typing
 ```
@@ -78,6 +78,11 @@ response text too large for your environment.
 regolo chat --disable-newlines
 ```
 
+- "--api-key", useful if the user prefers to insert the api key through arg instead of being prompted tot insert it.
+
+```
+regolo chat --api-key <api_key>
+```
 
 
 

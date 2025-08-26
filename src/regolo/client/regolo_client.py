@@ -387,6 +387,7 @@ class RegoloClient:
                     out_role: Role = delta.get("role", "")
                     out_content: Content = delta.get("content", "")
                     return out_role, out_content
+            return None
 
         # Use the default API key if not provided
         if api_key is None:
@@ -519,7 +520,7 @@ class RegoloClient:
                                                 base_url=base_url,
                                                 full_output=full_output)
 
-        if stream is True:
+        if stream:
             return response
         else:
             if full_output:
