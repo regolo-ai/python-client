@@ -1,12 +1,12 @@
 import os
+import pprint
+from datetime import datetime
+from io import BytesIO
+
+import click
+from PIL import Image
 
 import regolo
-import click
-import pprint
-from PIL import Image
-from io import BytesIO
-from datetime import datetime
-
 from regolo import RegoloClient
 from regolo.keys.keys import KeysHandler
 

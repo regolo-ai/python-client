@@ -12,7 +12,7 @@ description = "Simple client to interact with regolo.ai"
 readme = "README.md"
 keywords = [ "chat", "llm", "regolo" ]
 license = "MIT"
-license-files = ["LICENSE"]
+license-files = [ "LICENSE" ]
 authors = [ { name = "regolo.ai", email = "dev@regolo.ai" } ]
 requires-python = ">=3.12"
 
@@ -22,12 +22,12 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
 ]
 dependencies = [
+  "click==8.1.8",
   "httpx~=0.28.1",
   "json-repair~=0.35.0",
+  "pillow~=11.1.0",
   "pydantic~=2.10.6",
   "python-dotenv",
-  "click==8.1.8",
-  "pillow~=11.1.0"
 ]
 
 optional-dependencies.dev = [
@@ -39,6 +39,8 @@ optional-dependencies.dev = [
 ]
 optional-dependencies.imgs = [ "pillow~=11.1.0" ]
 urls.Homepage = "https://github.com/regolo-ai/python-client"
+
+scripts.regolo = "regolo.cli:cli"
 
 [tool.bumpver]
 current_version = "1.5.0"
@@ -60,7 +62,3 @@ push = true
 "src/regolo/__init__.py" = [
   '__version__ = "{version}"',
 ]
-
-
-[project.scripts]
-regolo = "regolo.cli:cli"

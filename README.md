@@ -50,7 +50,7 @@ To do that, you only need to install python and, if you want, create a venv with
 ```
 pip install virtualenv # install virtualenv in python
 cd <the directory that'll contain your venv> # choose the starting directory for your venv
-python -m venv env # create the venv in the env subdirectory 
+python -m venv env # create the venv in the env subdirectory
 ```
 
 To use your venv, you'll go to the env subdirectory and use the source command activate it:
@@ -63,7 +63,7 @@ At this point, you can run a simple chat with:
 regolo chat
 ```
 
-The CLI will guide you through inserting your API key and desired model. 
+The CLI will guide you through inserting your API key and desired model.
 
 It is worth mentioning that our "regolo chat" command has support for some arguments.
 
