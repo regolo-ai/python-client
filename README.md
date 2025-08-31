@@ -43,8 +43,6 @@ print(regolo.static_chat_completions(messages=[{"role": "user", "content": "Tell
 ```
 ---
 # **Chatting through regolo chat CLI**
-## **1. What is the regolo chat cli?**
-
 To simplify basic interactions with our LLMs, we offer you the possibility to perform request without writing code.
 To do that, you only need to install python and, if you want, create a venv with the commands:
 ```
@@ -84,8 +82,23 @@ regolo chat --disable-newlines
 regolo chat --api-key <api_key>
 ```
 
+## Other cli actions
+It is worth noting how the regolo cli will allow users to perform standard tasks such as:
 
+- Getting the models that you can access through your API key via:
+    ```
+    regolo get-available-models
+    ```
+- Generating images with desired parameters via:
+    ```
+    regolo create-image
+    ```
+- Transcribing audio files via:
+    ```
+    regolo transcribe-audio
+    ```
 
+All of these commands will give you an overview of their available parameters if you call them the --help parameter.
 
 ---
 # **Loading envs**
