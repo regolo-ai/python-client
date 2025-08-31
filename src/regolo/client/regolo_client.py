@@ -149,24 +149,47 @@ class RegoloClient:
     @staticmethod
     def create_stream_generator(client: httpx.Client,
                                 base_url: str,
-                                payload: dict,
-                                headers: dict,
-                                full_output: bool,
-                                search_url: str,
-                                output_handler: Callable[[Dict], Any]) -> Generator[Any, Any, None]:
+                                payload: Optional[dict] = None,
+                                files: Optional[dict] = None,
+                                data: Optional[dict] = None,
+                                headers: dict = None,
+                                full_output: bool = False,
+                                search_url: str = "",
+                                output_handler: Callable[[Dict], Any] = None) -> Generator[Any, Any, None]:
         """
-        Yields generators for streams from regolo.ai.
+        Yields generators for streams from regolo.ai (generalized for JSON and multipart requests).
 
         :param client: The httpx.Client instance to use.
         :param base_url: Base URL of the regolo HTTP server.
-        :param payload: The request payload to send.
+        :param payload: The JSON request payload to send (for JSON requests).
+            (Optional)
+        :param files: The files dict for multipart requests.
+            (Optional)
+        :param data: The form data dict for multipart requests.
+            (Optional)
         :param headers: The request headers.
         :param full_output: Whether to return the full response.
         :param search_url: The URL for the search request.
         :param output_handler: A function that processes responses if full_output=False.
         :return: A generator that yields streamed responses from regolo.ai.
         """
-        with client.stream("POST", f"{base_url}{search_url}", json=payload, headers=headers) as response:
+        # Determine the request type and prepare arguments
+        request_kwargs = {
+            "url": f"{base_url}{search_url}",
+            "headers": headers
+        }
+
+        if payload is not None:
+            # JSON request
+            request_kwargs["json"] = payload
+        elif files is not None and data is not None:
+            # Multipart form data request
+            request_kwargs["files"] = files
+            request_kwargs["data"] = data
+        else:
+            raise ValueError("Either payload (for JSON) or both files and data (for multipart) must be provided")
+
+        with client.stream("POST", **request_kwargs) as response:
             if response.status_code != 200:
                 raise Exception(f"Error: Received unexpected status code {response.status_code}")
 
@@ -185,15 +208,15 @@ class RegoloClient:
 
                 try:
                     # Repair and parse the JSON chunk
-                    data = json.loads(json_repair.repair_json(decoded_line))
+                    data_chunk = json.loads(json_repair.repair_json(decoded_line))
                 except (Exception,):
                     continue
 
                 if full_output:
-                    yield data
+                    yield data_chunk
                 else:
                     # Handle both dict and list responses uniformly
-                    yield output_handler(data)
+                    yield output_handler(data_chunk)
 
     # Completions
 
@@ -631,7 +654,9 @@ class RegoloClient:
 
         :param prompt: The text prompt for image generation.
         :param n: The number of images to generate. (Defaults to 1)
-        :param quality: The quality of the image that will be generated. The "hd" value creates images with finer details and greater consistency across the image. (Defaults to "standard")
+        :param quality: The quality of the image that will be generated.
+            The "hd" value creates images with finer details and greater consistency across the image.
+            (Defaults to "standard")
         :param size: The size of the generated images.
         :param style: The style of the generated images. (Defaults to "vivid")
         :param full_output: Whether to return full response. (Defaults to False)
@@ -749,35 +774,56 @@ class RegoloClient:
                                    timestamp_granularities: Optional[List[str]] = None,
                                    client: Optional[httpx.Client] = None,
                                    base_url: str = os.getenv("REGOLO_URL"),
-                                   full_output: bool = False) -> Generator[dict | Any, Any, Any | None]:
+                                   full_output: bool = False) -> str | dict | Generator[Any, Any, None]:
         """
         Transcribes audio using the regolo.ai audio transcription model.
 
-        :param file: The audio file object (bytes, a file-like object, or a path string) to transcribe, in formats: flac, mp3, mp4, mpeg, mpga, m4a, ogg, wav, or webm.
-        :param model: ID of the model to use. Options: gpt-4o-transcribe, gpt-4o-mini-transcribe, or whisper-1.
-        :param api_key: The API key for regolo.ai. (Optional)
-        :param chunking_strategy: Controls how audio is cut into chunks. "Auto" or object. (Optional)
-        :param include: Additional information to include in response. Array of "logprobs". (Optional)
-        :param language: The language of the input audio in ISO-639-1 format. (Optional)
-        :param prompt: An optional text to guide the model's style or continue a previous audio segment. (Optional)
-        :param response_format: The format of the output: json, text, srt, verbose_json, or vtt. (Defaults to "json")
-        :param stream: If true, stream the response using server-sent events. Note: Not supported for whisper-1. (Defaults to False)
-        :param temperature: The sampling temperature, between 0 and 1. (Defaults to 0)
-        :param timestamp_granularities: Timestamp granularities: word or segment. Requires verbose_json format. (Optional)
-        :param client: httpx client to use. (Optional)
-        :param base_url: Base URL of the regolo HTTP server. (Defaults to REGOLO_URL)
-        :param full_output: Whether to return the full response. (Defaults to False)
+        :param file: The audio file object (bytes, file-like an object, or path string) to transcribe,
+            in formats: flac, mp3, mp4, mpeg, mpga, m4a, ogg, wav, or webm.
+        :param model: The name of the model to use.
+            Example: faster-whisper-large-v3
+        :param api_key: The API key for regolo.ai.
+            (Optional)
+        :param chunking_strategy: Controls how audio is cut into chunks.
+            Auto or object.
+            (Optional)
+        :param include: Additional information to include in response.
+            (Optional)
+        :param language: The language of the input audio in ISO-639-1 format.
+            (Optional)
+        :param prompt: An optional text to guide the model's style or continue a previous audio segment.
+            (Optional)
+        :param response_format: The format of the output: json, text, srt, verbose_json, or vtt.
+            (Defaults to "json")
+        :param stream: If true, stream the response using server-sent events.
+            Note: Not supported for whisper-1.
+            (Defaults to False)
+        :param temperature: The sampling temperature, between 0 and 1.
+            (Defaults to 0)
+        :param timestamp_granularities: Timestamp granularities: word or segment.
+            Requires verbose_json format.
+            (Optional)
+        :param client: httpx client to use.
+            (Optional)
+        :param base_url: Base URL of the regolo HTTP server.
+            (Defaults to REGOLO_URL)
+        :param full_output: Whether to return the full response.
+            (Defaults to False)
 
         :return for stream=True: Generator yielding streaming responses.
         :return for stream=False, full_output=True: Dict containing the full response from regolo.ai.
         :return for stream=False, full_output=False: String with transcribed text.
         """
 
-        def handle_search_audio_transcription(data: dict) -> dict:
+        def handle_search_audio_transcription(output_data: dict) -> Optional[str]:
             """
-            Internal method, describes how streaming should handle output from audio transcriptions.
+            Internal method, describes how RegoloClient.create_stream_generator() should handle
+            output from audio transcriptions.
             """
-            return data
+            if isinstance(output_data, dict):
+                # Extract text content from streaming chunks
+                return output_data.get("text", "")
+            return ""
 
         # Use the default API key if none is provided
         if api_key is None:
@@ -848,36 +894,17 @@ class RegoloClient:
             headers = {"Authorization": api_key}
 
             if stream:
-                # Handle streaming for file uploads inline since create_stream_generator expects json payload
-                with client.stream("POST", f"{base_url}{os.getenv('AUDIO_TRANSCRIPTION_URL_PATH')}",
-                                   files=files, data=data, headers=headers) as response:
-                    if response.status_code != 200:
-                        raise Exception(f"Error: Received unexpected status code {response.status_code}")
-
-                    # Iterate over complete lines instead of raw bytes
-                    for line in response.iter_lines():
-                        if not line:
-                            continue
-
-                        # Decode if necessary and remove the "data:" prefix if present
-                        decoded_line = line.decode("utf-8") if isinstance(line, bytes) else line
-                        decoded_line = decoded_line.strip()
-                        if decoded_line == "data: [DONE]":
-                            break
-                        if decoded_line.startswith("data:"):
-                            decoded_line = decoded_line[len("data:"):].strip()
-
-                        try:
-                            # Repair and parse the JSON chunk
-                            data_chunk = json.loads(json_repair.repair_json(decoded_line))
-                        except (Exception,):
-                            continue
-
-                        if full_output:
-                            yield data_chunk
-                        else:
-                            yield handle_search_audio_transcription(data_chunk)
-                return None
+                # Use the generalized create_stream_generator for streaming
+                return RegoloClient.create_stream_generator(
+                    client=client,
+                    base_url=base_url,
+                    files=files,
+                    data=data,
+                    headers=headers,
+                    full_output=full_output,
+                    search_url=os.getenv("AUDIO_TRANSCRIPTION_URL_PATH"),
+                    output_handler=handle_search_audio_transcription
+                )
 
             # Non-streaming case
             response = client.post(
@@ -913,21 +940,35 @@ class RegoloClient:
                             stream: bool = False,
                             temperature: Optional[float] = 0,
                             timestamp_granularities: Optional[List[str]] = None,
-                            full_output: bool = False) -> Generator[dict | Any, Any, Any | None]:
+                            full_output: bool = False) -> str | dict | GeneratorType:
         """
         Transcribes audio using the regolo.ai audio transcription model from RegoloClient instance.
 
-        :param file: The audio file object (bytes, a file-like object, or a path string) to transcribe, in formats: flac, mp3, mp4, mpeg, mpga, m4a, ogg, wav, or webm.
-        :param model: ID of the model to use. Uses an instance model if not specified. (Optional)
-        :param chunking_strategy: Controls how audio is cut into chunks. "Auto" or object. (Optional)
-        :param include: Additional information to include in response. Array of "logprobs". (Optional)
-        :param language: The language of the input audio in ISO-639-1 format. (Optional)
-        :param prompt: An optional text to guide the model's style or continue a previous audio segment. (Optional)
-        :param response_format: The format of the output: json, text, srt, verbose_json, or vtt. (Defaults to "json")
-        :param stream: If true, stream the response using server-sent events. Note: Not supported for whisper-1. (Defaults to False)
-        :param temperature: The sampling temperature, between 0 and 1. (Defaults to 0)
-        :param timestamp_granularities: Timestamp granularities: word or segment. Requires verbose_json format. (Optional)
-        :param full_output: Whether to return the full response. (Defaults to False)
+        :param file: The audio file object (bytes, file-like an object, or path string) to transcribe,
+            in formats: flac, mp3, mp4, mpeg, mpga, m4a, ogg, wav, or webm.
+        :param model: The name of the model to use.
+            Example: faster-whisper-large-v3
+        :param chunking_strategy: Controls how audio is cut into chunks.
+            Auto or object.
+            (Optional)
+        :param include: Additional information to include in response.
+            (Optional)
+        :param language: The language of the input audio in ISO-639-1 format.
+            (Optional)
+        :param prompt: An optional text to guide the model's style or continue a previous audio segment.
+            (Optional)
+        :param response_format: The format of the output: json, text, srt, verbose_json, or vtt.
+            (Defaults to "json")
+        :param stream: If true, stream the response using server-sent events.
+            Note: Not supported for whisper-1.
+            (Defaults to False)
+        :param temperature: The sampling temperature, between 0 and 1.
+            (Defaults to 0)
+        :param timestamp_granularities: Timestamp granularities: word or segment.
+            Requires verbose_json format.
+            (Optional)
+        :param full_output: Whether to return the full response.
+            (Defaults to False)
 
         :return for stream=True: Generator yielding streaming responses.
         :return for stream=False, full_output=True: Dict containing the full response from regolo.ai.
@@ -939,7 +980,7 @@ class RegoloClient:
         else:
             base_url = self.instance.get_base_url()
 
-        # Use instance model if not specified
+        # Use the instance model if not specified
         if model is None:
             model = self.instance.get_model()
 
