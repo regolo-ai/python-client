@@ -81,9 +81,10 @@ def safe_post(client: httpx.Client,
 
 class RegoloClient:
     def __init__(self,
-                 model: Optional[str] = None,
+                 chat_model: Optional[str] = None,
                  embedder_model: Optional[str] = None,
-                 image_model: Optional[str] = None,
+                 image_generation_model: Optional[str] = None,
+                 audio_transcription_model: Optional[str] = None,
                  api_key: Optional[str] = None,
                  alternative_url: Optional[str] = None,
                  pre_existent_conversation: Optional[Conversation] = None,
@@ -91,24 +92,31 @@ class RegoloClient:
         """
         Initialize the client for regolo.ai HTTP API.
 
-        :param model: The regolo.ai model to use. (Defaults to regolo.default_model)
-        :param api_key: The API key for regolo.ai. (Defaults to regolo.default_key)
-        :param alternative_url: Base URL of the regolo HTTP server. (Optional)
-        :param pre_existent_conversation: An existing conversation instance to continue chatting with. (Optional)
-        :param pre_existent_client: An existing httpx.Client instance to use. (Optional)
+        :param chat_model: The regolo.ai model to use.
+            (Defaults to regolo.default_model)
+        :param api_key: The API key for regolo.ai.
+            (Defaults to regolo.default_key)
+        :param alternative_url: Base URL of the regolo HTTP server.
+            (Optional)
+        :param pre_existent_conversation: An existing conversation instance to continue chatting with.
+            (Optional)
+        :param pre_existent_client: An existing httpx.Client instance to use.
+            (Optional)
         """
 
-        model = regolo.default_model if model is None else model
+        model = regolo.default_chat_model if chat_model is None else chat_model
         embedder_model = regolo.default_embedder_model if embedder_model is None else embedder_model
-        image_model = regolo.default_image_model if image_model is None else image_model
+        image_generation_model = regolo.default_image_generation_model if image_generation_model is None else image_generation_model
+        audio_transcription_model = regolo.default_audio_transcription_model if audio_transcription_model is None else audio_transcription_model
         api_key = regolo.default_key if api_key is None else api_key
         base_url = None if alternative_url is None else alternative_url
         client = httpx.Client(base_url=os.getenv(
             "REGOLO_URL") if base_url is None else base_url) if pre_existent_client is None else pre_existent_client
 
-        self.instance = RegoloInstance(model=model,
+        self.instance = RegoloInstance(chat_model=model,
                                        embedder_model=embedder_model,
-                                       image_model=image_model,
+                                       image_generation_model=image_generation_model,
+                                       audio_transcription_model=audio_transcription_model,
                                        api_key=api_key,
                                        previous_conversations=pre_existent_conversation, client=client,
                                        base_url=base_url)
@@ -116,7 +124,7 @@ class RegoloClient:
     @classmethod
     def from_instance(cls, instance: RegoloInstance, alternative_url: Optional[str] = None) -> "RegoloClient":
         """Creates RegoloClient from instance."""
-        return cls(api_key=instance.api_key, model=instance.model, alternative_url=alternative_url,
+        return cls(api_key=instance.api_key, chat_model=instance.chat_model, alternative_url=alternative_url,
                    pre_existent_client=instance.client, pre_existent_conversation=instance.conversation)
 
     def change_model(self, model: str) -> None:
@@ -269,7 +277,7 @@ class RegoloClient:
 
         # Use the default model if none is specified
         if model is None:
-            model = regolo.default_model
+            model = regolo.default_chat_model
 
         # Validate the selected model
         ModelsHandler.check_model(model=model, api_key=api_key, base_url=base_url)
@@ -428,7 +436,7 @@ class RegoloClient:
 
         # Use the default model if not specified
         if model is None:
-            model = regolo.default_model
+            model = regolo.default_chat_model
 
         # Validate the model
         ModelsHandler.check_model(model=model, base_url=base_url, api_key=api_key)
@@ -603,7 +611,7 @@ class RegoloClient:
 
         # Use the default model if not specified
         if model is None:
-            model = regolo.default_image_model
+            model = regolo.default_image_generation_model
 
         # Validate the model
         ModelsHandler.check_model(model=model, base_url=base_url, api_key=api_key)
@@ -762,7 +770,7 @@ class RegoloClient:
 
     @staticmethod
     def static_audio_transcription(file,
-                                   model: str,
+                                   model: Optional[str] = None,
                                    api_key: Optional[str] = None,
                                    chunking_strategy: Optional[str | dict] = None,
                                    include: Optional[List[str]] = None,
@@ -782,6 +790,7 @@ class RegoloClient:
             in formats: flac, mp3, mp4, mpeg, mpga, m4a, ogg, wav, or webm.
         :param model: The name of the model to use.
             Example: faster-whisper-large-v3
+            (Optional)
         :param api_key: The API key for regolo.ai.
             (Optional)
         :param chunking_strategy: Controls how audio is cut into chunks.
@@ -831,6 +840,9 @@ class RegoloClient:
 
         # Validate API key
         api_key = KeysHandler.check_key(api_key)
+
+        if model is None:
+            model = regolo.default_audio_transcription_model
 
         # Validate the selected model
         ModelsHandler.check_model(model=model, api_key=api_key, base_url=base_url)
@@ -948,6 +960,7 @@ class RegoloClient:
             in formats: flac, mp3, mp4, mpeg, mpga, m4a, ogg, wav, or webm.
         :param model: The name of the model to use.
             Example: faster-whisper-large-v3
+            (Optional)
         :param chunking_strategy: Controls how audio is cut into chunks.
             Auto or object.
             (Optional)

@@ -15,18 +15,25 @@ class RegoloInstance:
     Represents an instance of a Regolo AI client, maintaining the conversation state,
     HTTP client, API key, and selected model.
 
-    :param model: The Regolo AI model to use.
+    :param chat_model: The Regolo AI model to use.
     :param api_key: The API key for authentication.
     :param client: An optional existing `httpx.Client` instance for making requests.
     :param previous_conversations: An optional `Conversation` instance to maintain chat history.
     """
 
-    def __init__(self, model: Optional[str], embedder_model: Optional[str], image_model: Optional[str], api_key: str,
-                 base_url: str, client: Optional[httpx.Client], previous_conversations: Optional[Conversation] = None) -> None:
+    def __init__(self,
+                 chat_model: Optional[str],
+                 embedder_model: Optional[str],
+                 image_generation_model: Optional[str],
+                 audio_transcription_model: Optional[str],
+                 api_key: str,
+                 base_url: str,
+                 client: Optional[httpx.Client],
+                 previous_conversations: Optional[Conversation] = None) -> None:
         """
         Initializes a RegoloInstance.
 
-        :param model: The selected AI model to use.
+        :param chat_model: The selected AI model to use.
         :param api_key: The API key for authentication.
         :param client: Optional `httpx.Client` instance; if not provided, a new one is created.
         :param previous_conversations: Optional `Conversation` instance for maintaining chat history.
@@ -35,8 +42,9 @@ class RegoloInstance:
             lines=[]) if previous_conversations is None else previous_conversations
         self.client: httpx.Client = httpx.Client() if client is None else client
         self.api_key: str = KeysHandler.check_key(api_key)
-        self.model: Optional[str] = model
-        self.image_model: Optional[str] = image_model
+        self.chat_model: Optional[str] = chat_model
+        self.image_generation_model: Optional[str] = image_generation_model
+        self.audio_transcription_model: Optional[str] = audio_transcription_model
         self.embedder_model: Optional[str] = embedder_model
         self.base_url: str = base_url
 
@@ -62,7 +70,7 @@ class RegoloInstance:
 
         :return: The model name as a string.
         """
-        return self.model
+        return self.chat_model
 
     def get_base_url(self) -> str:
         """
@@ -78,7 +86,7 @@ class RegoloInstance:
 
         :return: The image name as a string.
         """
-        return self.image_model
+        return self.image_generation_model
 
     def get_embedder_model(self) -> str:
         """
@@ -94,7 +102,7 @@ class RegoloInstance:
 
         :param new_model: The new model name to switch to.
         """
-        self.model = ModelsHandler.check_model(model=new_model, base_url=self.base_url, api_key=self.api_key)
+        self.chat_model = ModelsHandler.check_model(model=new_model, base_url=self.base_url, api_key=self.api_key)
 
     def get_conversation(self) -> List[Dict[str, str]]:
         """

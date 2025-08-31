@@ -14,13 +14,13 @@ pytest.mark.skipif(API_KEY is None, reason="Api key not set")
 
 # Set default key and model for testing
 regolo.default_key = os.getenv("TEST_KEY")
-regolo.default_model = "Llama-3.1-8B-Instruct"
+regolo.default_chat_model = "Llama-3.1-8B-Instruct"
 
 # testing with mock methods
 def test_completions():
     load_dotenv()
     regolo.default_key = os.getenv("TEST_KEY")
-    regolo.default_model = "Llama-3.1-8B-Instruct"
+    regolo.default_chat_model = "Llama-3.1-8B-Instruct"
     mock_response = "Rome is the capital city of Italy."
     client = regolo.RegoloClient()
     client.static_completions = MagicMock(return_value=mock_response)
@@ -31,7 +31,7 @@ def test_completions():
 def test_chat_completions():
     load_dotenv()
     regolo.default_key = os.getenv("TEST_KEY")
-    regolo.default_model = "Llama-3.1-8B-Instruct"
+    regolo.default_chat_model = "Llama-3.1-8B-Instruct"
     mock_response = "Rome is the capital city of Italy."
     client = regolo.RegoloClient()
     client.static_chat_completions = MagicMock(return_value=mock_response)
@@ -45,7 +45,7 @@ def test_chat_completions():
 def test_static_completions() -> None:
     load_dotenv()
     regolo.default_key = os.getenv("TEST_KEY")
-    regolo.default_model = "Llama-3.1-8B-Instruct"
+    regolo.default_chat_model = "Llama-3.1-8B-Instruct"
     client = regolo.RegoloClient()
     response = client.completions(prompt="Tell me something about Rome.")
     assert type(response) == str
@@ -66,7 +66,7 @@ def test_static_image_create() -> None:
     import regolo
 
     regolo.default_key = os.getenv("TEST_KEY")
-    regolo.default_image_model = "Qwen-Image"
+    regolo.default_image_generation_model = "Qwen-Image"
     client = regolo.RegoloClient()
     img_bytes = client.create_image(prompt="A cat in Rome")[0]
     image = Image.open(BytesIO(img_bytes))
@@ -79,3 +79,20 @@ def test_static_embeddings() -> None:
     client = regolo.RegoloClient()
     embeddings = client.embeddings(input_text=["test", "test1"])
     assert type(embeddings) == list
+
+"""
+def test_audio_transcriptions() -> None:
+    import regolo
+    regolo.default_key = os.getenv("TEST_KEY")
+    regolo.default_audio_transcription_model = "faster-whisper-large-v3"
+    client = regolo.RegoloClient()
+    transcriptions =  client.audio_transcription(file="<example_file_path>")
+    assert type(transcriptions) == dict
+"""
+
+test_completions()
+test_chat_completions()
+test_static_completions()
+test_static_chat_completions()
+test_static_image_create()
+test_static_embeddings()

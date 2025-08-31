@@ -197,7 +197,7 @@ while True:
 ```python
 import regolo
 regolo.default_key = "<EXAMPLE_KEY>"
-regolo.default_model = "Llama-3.3-70B-Instruct"
+regolo.default_chat_model = "Llama-3.3-70B-Instruct"
 
 # Completions
 
@@ -265,7 +265,7 @@ from io import BytesIO
 import regolo
 from PIL import Image
 
-regolo.default_image_model = "FLUX.1-dev"
+regolo.default_image_generation_model = "Qwen-Image"
 regolo.default_key = "<EXAMPLE_KEY>"
 
 img_bytes = regolo.static_image_create(prompt="a cat")[0]
@@ -276,12 +276,14 @@ image.show()
 ```
 
 **With client**
+
 ```python
 from io import BytesIO
 
 import regolo
 from PIL import Image
-client = regolo.RegoloClient(image_model="FLUX.1-dev", api_key="<EXAMPLE_KEY>")
+
+client = regolo.RegoloClient(image_generation_model="Qwen-Image", api_key="<EXAMPLE_KEY>")
 
 img_bytes = client.create_image(prompt="A cat in Rome")[0]
 
@@ -314,4 +316,28 @@ client = regolo.RegoloClient(api_key="<EXAMPLE_KEY>", embedder_model="gte-Qwen2"
 embeddings = client.embeddings(input_text=["test", "test1"])
 
 print(embeddings)
+```
+
+## **Handling audio transcribing models**
+**Without client:**
+```python
+import regolo
+
+regolo.default_key = "<EXAMPLE_KEY>"
+regolo.default_audio_transcription_model = "faster-whisper-large-v3"
+
+transcribed_text = regolo.static_audio_transcription(file="<example_path>/<example_file_name>.mp3", full_output=True)
+
+print(transcribed_text)
+```
+
+**With client:**
+```python
+import regolo
+
+client = regolo.RegoloClient(api_key="<EXAMPLE_KEY>", audio_transcription_model="faster-whisper-large-v3")
+
+transcribed_text = client.audio_transcription(file="<example_path>/<example_file_name>.mp3", full_output=True)
+
+print(transcribed_text)
 ```
