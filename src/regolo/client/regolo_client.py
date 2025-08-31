@@ -25,6 +25,7 @@ COMPLETIONS_URL_PATH = "/v1/completions"
 CHAT_COMPLETIONS_URL_PATH = "/v1/chat/completions"
 IMAGE_GENERATION_URL_PATH = "/v1/images/generations"
 EMBEDDINGS_URL_PATH = "/v1/embeddings"
+AUDIO_TRANSCRIPTION_URL_PATH = "/v1/audio/transcriptions"
 
 os.environ["REGOLO_URL"] = REGOLO_URL \
     if os.getenv("REGOLO_URL") is None \
@@ -45,6 +46,10 @@ os.environ["IMAGE_GENERATION_URL_PATH"] = IMAGE_GENERATION_URL_PATH \
 os.environ["EMBEDDINGS_URL_PATH"] = EMBEDDINGS_URL_PATH \
     if os.getenv("EMBEDDINGS_URL_PATH") is None \
     else os.getenv("EMBEDDINGS_URL_PATH")
+
+os.environ["AUDIO_TRANSCRIPTION_URL_PATH"] = AUDIO_TRANSCRIPTION_URL_PATH \
+    if os.getenv("AUDIO_TRANSCRIPTION_URL_PATH") is None \
+    else os.getenv("AUDIO_TRANSCRIPTION_URL_PATH")
 
 timeout = 500
 
@@ -122,7 +127,9 @@ class RegoloClient:
             print(e)
 
     @staticmethod
-    def get_available_models(api_key: str, base_url: str = os.getenv("REGOLO_URL"), model_info: bool=False) -> List[str] | List[dict]:
+    def get_available_models(api_key: str,
+                             base_url: str = os.getenv("REGOLO_URL"),
+                             model_info: bool=False) -> List[str] | List[dict]:
         """
         Gets all available models on regolo.ai.
 
@@ -727,3 +734,228 @@ class RegoloClient:
                                       api_key=self.instance.get_api_key(),
                                       client=self.instance.get_client(),
                                       base_url=base_url)
+
+    @staticmethod
+    def static_audio_transcription(file,
+                                   model: str,
+                                   api_key: Optional[str] = None,
+                                   chunking_strategy: Optional[str | dict] = None,
+                                   include: Optional[List[str]] = None,
+                                   language: Optional[str] = None,
+                                   prompt: Optional[str] = None,
+                                   response_format: str = "json",
+                                   stream: bool = False,
+                                   temperature: Optional[float] = 0,
+                                   timestamp_granularities: Optional[List[str]] = None,
+                                   client: Optional[httpx.Client] = None,
+                                   base_url: str = os.getenv("REGOLO_URL"),
+                                   full_output: bool = False) -> Generator[dict | Any, Any, Any | None]:
+        """
+        Transcribes audio using the regolo.ai audio transcription model.
+
+        :param file: The audio file object (bytes, a file-like object, or a path string) to transcribe, in formats: flac, mp3, mp4, mpeg, mpga, m4a, ogg, wav, or webm.
+        :param model: ID of the model to use. Options: gpt-4o-transcribe, gpt-4o-mini-transcribe, or whisper-1.
+        :param api_key: The API key for regolo.ai. (Optional)
+        :param chunking_strategy: Controls how audio is cut into chunks. "Auto" or object. (Optional)
+        :param include: Additional information to include in response. Array of "logprobs". (Optional)
+        :param language: The language of the input audio in ISO-639-1 format. (Optional)
+        :param prompt: An optional text to guide the model's style or continue a previous audio segment. (Optional)
+        :param response_format: The format of the output: json, text, srt, verbose_json, or vtt. (Defaults to "json")
+        :param stream: If true, stream the response using server-sent events. Note: Not supported for whisper-1. (Defaults to False)
+        :param temperature: The sampling temperature, between 0 and 1. (Defaults to 0)
+        :param timestamp_granularities: Timestamp granularities: word or segment. Requires verbose_json format. (Optional)
+        :param client: httpx client to use. (Optional)
+        :param base_url: Base URL of the regolo HTTP server. (Defaults to REGOLO_URL)
+        :param full_output: Whether to return the full response. (Defaults to False)
+
+        :return for stream=True: Generator yielding streaming responses.
+        :return for stream=False, full_output=True: Dict containing the full response from regolo.ai.
+        :return for stream=False, full_output=False: String with transcribed text.
+        """
+
+        def handle_search_audio_transcription(data: dict) -> dict:
+            """
+            Internal method, describes how streaming should handle output from audio transcriptions.
+            """
+            return data
+
+        # Use the default API key if none is provided
+        if api_key is None:
+            api_key = regolo.default_key
+
+        # Validate API key
+        api_key = KeysHandler.check_key(api_key)
+
+        # Validate the selected model
+        ModelsHandler.check_model(model=model, api_key=api_key, base_url=base_url)
+
+        # Create a new HTTP client if none is provided
+        if client is None:
+            client = httpx.Client()
+
+        # Handle different file input types
+        try:
+            if isinstance(file, str):
+                # File path provided
+                with open(file, 'rb') as audio_file:
+                    file_content = audio_file.read()
+                    file_name = os.path.basename(file)
+            elif isinstance(file, bytes):
+                # Bytes provided
+                file_content = file
+                file_name = "audio_file"
+            elif hasattr(file, 'read'):
+                # File-like object provided
+                file_content = file.read()
+                file_name = getattr(file, 'name', 'audio_file')
+            else:
+                raise ValueError("File must be a path string, bytes, or file-like object")
+
+            files = {
+                'file': (file_name, file_content, 'audio/*')
+            }
+
+            # Construct the data payload (form data, not JSON for file uploads)
+            data = {
+                'model': model,
+                'response_format': response_format,
+                'stream': str(stream).lower(),
+            }
+
+            # Add optional parameters if provided
+            if chunking_strategy is not None:
+                if isinstance(chunking_strategy, str):
+                    data['chunking_strategy'] = chunking_strategy
+                else:
+                    # Handle object case - convert to JSON string
+                    data['chunking_strategy'] = json.dumps(chunking_strategy)
+
+            if include is not None:
+                for item in include:
+                    data[f'include[]'] = item
+
+            if language is not None:
+                data['language'] = language
+            if prompt is not None:
+                data['prompt'] = prompt
+            if temperature is not None:
+                data['temperature'] = str(temperature)
+            if timestamp_granularities is not None:
+                for granularity in timestamp_granularities:
+                    data[f'timestamp_granularities[]'] = granularity
+
+            # Set authorization header
+            headers = {"Authorization": api_key}
+
+            if stream:
+                # Handle streaming for file uploads inline since create_stream_generator expects json payload
+                with client.stream("POST", f"{base_url}{os.getenv('AUDIO_TRANSCRIPTION_URL_PATH')}",
+                                   files=files, data=data, headers=headers) as response:
+                    if response.status_code != 200:
+                        raise Exception(f"Error: Received unexpected status code {response.status_code}")
+
+                    # Iterate over complete lines instead of raw bytes
+                    for line in response.iter_lines():
+                        if not line:
+                            continue
+
+                        # Decode if necessary and remove the "data:" prefix if present
+                        decoded_line = line.decode("utf-8") if isinstance(line, bytes) else line
+                        decoded_line = decoded_line.strip()
+                        if decoded_line == "data: [DONE]":
+                            break
+                        if decoded_line.startswith("data:"):
+                            decoded_line = decoded_line[len("data:"):].strip()
+
+                        try:
+                            # Repair and parse the JSON chunk
+                            data_chunk = json.loads(json_repair.repair_json(decoded_line))
+                        except (Exception,):
+                            continue
+
+                        if full_output:
+                            yield data_chunk
+                        else:
+                            yield handle_search_audio_transcription(data_chunk)
+                return None
+
+            # Non-streaming case
+            response = client.post(
+                url=f"{base_url}{os.getenv('AUDIO_TRANSCRIPTION_URL_PATH')}",
+                files=files,
+                data=data,
+                headers=headers,
+                timeout=timeout
+            )
+            response.raise_for_status()
+
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Audio file not found: {file}")
+        except Exception as e:
+            raise Exception(f"Error processing audio file: {str(e)}")
+
+        response_json = response.json()
+
+        if full_output:
+            return response_json
+        else:
+            # Return just the transcribed text
+            return response_json.get("text", "")
+
+    def audio_transcription(self,
+                            file,
+                            model: Optional[str] = None,
+                            chunking_strategy: Optional[str | dict] = None,
+                            include: Optional[List[str]] = None,
+                            language: Optional[str] = None,
+                            prompt: Optional[str] = None,
+                            response_format: str = "json",
+                            stream: bool = False,
+                            temperature: Optional[float] = 0,
+                            timestamp_granularities: Optional[List[str]] = None,
+                            full_output: bool = False) -> Generator[dict | Any, Any, Any | None]:
+        """
+        Transcribes audio using the regolo.ai audio transcription model from RegoloClient instance.
+
+        :param file: The audio file object (bytes, a file-like object, or a path string) to transcribe, in formats: flac, mp3, mp4, mpeg, mpga, m4a, ogg, wav, or webm.
+        :param model: ID of the model to use. Uses an instance model if not specified. (Optional)
+        :param chunking_strategy: Controls how audio is cut into chunks. "Auto" or object. (Optional)
+        :param include: Additional information to include in response. Array of "logprobs". (Optional)
+        :param language: The language of the input audio in ISO-639-1 format. (Optional)
+        :param prompt: An optional text to guide the model's style or continue a previous audio segment. (Optional)
+        :param response_format: The format of the output: json, text, srt, verbose_json, or vtt. (Defaults to "json")
+        :param stream: If true, stream the response using server-sent events. Note: Not supported for whisper-1. (Defaults to False)
+        :param temperature: The sampling temperature, between 0 and 1. (Defaults to 0)
+        :param timestamp_granularities: Timestamp granularities: word or segment. Requires verbose_json format. (Optional)
+        :param full_output: Whether to return the full response. (Defaults to False)
+
+        :return for stream=True: Generator yielding streaming responses.
+        :return for stream=False, full_output=True: Dict containing the full response from regolo.ai.
+        :return for stream=False, full_output=False: String with transcribed text.
+        """
+
+        if self.instance.get_base_url() is None:
+            base_url = os.getenv("REGOLO_URL")
+        else:
+            base_url = self.instance.get_base_url()
+
+        # Use instance model if not specified
+        if model is None:
+            model = self.instance.get_model()
+
+        return self.static_audio_transcription(
+            file=file,
+            model=model,
+            api_key=self.instance.get_api_key(),
+            chunking_strategy=chunking_strategy,
+            include=include,
+            language=language,
+            prompt=prompt,
+            response_format=response_format,
+            stream=stream,
+            temperature=temperature,
+            timestamp_granularities=timestamp_granularities,
+            client=self.instance.get_client(),
+            base_url=base_url,
+            full_output=full_output
+        )
