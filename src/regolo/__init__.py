@@ -1,5 +1,5 @@
 # The version of the current module.
-__version__ = "1.5.0"
+__version__ = "1.6.0"
 
 import os
 
