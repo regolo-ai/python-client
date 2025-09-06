@@ -4,8 +4,10 @@ import pprint
 from datetime import datetime
 from io import BytesIO
 from typing import Any
+from typing import Optional
 
 import click
+import requests
 from PIL import Image
 
 import regolo
@@ -15,14 +17,702 @@ from regolo.keys.keys import KeysHandler
 IMAGE_EXTENSIONS = ["jpg", "jpeg", "png"]
 AUDIO_EXTENSIONS = ["flac", "mp3", "mp4", "mpeg", "mpga", "m4a", "ogg", "wav", "webm"]
 
+# Configuration file for storing auth tokens
+CONFIG_FILE = os.path.expanduser("~/.regolo_config.json")
+
+
+class ModelManagementClient:
+    """Client for interacting with the Model Management API"""
+
+    def __init__(self, base_url: str = "https://devmid.regolo.ai"):
+        self.base_url = base_url
+        self.token = None
+        self.refresh_token = None
+        self._load_config()
+
+    def _load_config(self):
+        """Load authentication tokens from config file"""
+        if os.path.exists(CONFIG_FILE):
+            try:
+                with open(CONFIG_FILE, 'r') as f:
+                    config = json.load(f)
+                    self.token = config.get('access_token')
+                    self.refresh_token = config.get('refresh_token')
+            except Exception as e:
+                click.echo(f"Failed to load config: {e}")
+
+    def _save_config(self):
+        """Save authentication tokens to config file"""
+        config = {
+            'access_token': self.token,
+            'refresh_token': self.refresh_token
+        }
+        os.makedirs(os.path.dirname(CONFIG_FILE), exist_ok=True)
+        with open(CONFIG_FILE, 'w') as f:
+            json.dump(config, f)
+
+    def _headers(self):
+        """Get authentication headers"""
+        if not self.token:
+            raise Exception("Not authenticated. Please run 'regolo-cli auth login' first.")
+        return {"Authorization": f"Bearer {self.token}"}
+
+    def _make_request(self, method: str, endpoint: str, **kwargs):
+        """Make authenticated API request with token refresh handling"""
+        url = f"{self.base_url}{endpoint}"
+
+        try:
+            response = requests.request(method, url, headers=self._headers(), **kwargs)
+
+            # If token expired, try to refresh
+            if response.status_code == 401 and self.refresh_token:
+                if self._refresh_token():
+                    # Retry with new token
+                    response = requests.request(method, url, headers=self._headers(), **kwargs)
+                else:
+                    raise Exception("Authentication failed. Please login again.")
+
+            response.raise_for_status()
+            return response.json() if response.content else {}
+
+        except requests.exceptions.HTTPError as e:
+            try:
+                error_detail = e.response.json().get('detail', str(e))
+            except:
+                error_detail = str(e)
+            raise Exception(f"API Error: {error_detail}")
+
+    def authenticate(self, username: str, password: str):
+        """Authenticate and get access tokens"""
+        response = requests.post(
+            f"{self.base_url}/auth/login",
+            json={"username": username, "password": password}
+        )
+
+        if response.status_code != 200:
+            try:
+                error = response.json().get('detail', 'Authentication failed')
+            except:
+                error = 'Authentication failed'
+            raise Exception(error)
+
+        data = response.json()
+        self.token = data["access_token"]
+        self.refresh_token = data["refresh_token"]
+        self._save_config()
+        return data
+
+    def _refresh_token(self):
+        """Refresh access token"""
+        if not self.refresh_token:
+            return False
+
+        try:
+            response = requests.post(
+                f"{self.base_url}/auth/refresh",
+                json={"refresh_token": self.refresh_token}
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+                self.token = data["access_token"]
+                self.refresh_token = data["refresh_token"]
+                self._save_config()
+                return True
+        except:
+            pass
+
+        return False
+
+    # Model Management Methods
+    def register_model(self, name: str, is_huggingface: bool, project_name: str,
+                       url: Optional[str] = None, api_key: Optional[str] = None,
+                       force: bool = False):
+        """Register a new model"""
+        data = {
+            "name": name,
+            "is_huggingface": is_huggingface,
+            "project_name": project_name,
+            "force": force
+        }
+        if url:
+            data["url"] = url
+        if api_key:
+            data["api_key"] = api_key
+
+        return self._make_request("POST", "/models/load", json=data)
+
+    def get_models(self):
+        """Get all models"""
+        return self._make_request("GET", "/models")
+
+    def get_model(self, model_name: str):
+        """Get specific model details"""
+        return self._make_request("GET", f"/models/{model_name}")
+
+    def delete_model(self, model_name: str):
+        """Delete a model"""
+        return self._make_request("DELETE", f"/models/{model_name}")
+
+    # SSH Key Management Methods
+    def add_ssh_key(self, title: str, key: str):
+        """Add SSH key"""
+        return self._make_request("POST", "/ssh-keys", json={"title": title, "key": key})
+
+    def get_ssh_keys(self):
+        """Get all SSH keys"""
+        return self._make_request("GET", "/ssh-keys")
+
+    def delete_ssh_key(self, key_id: str):
+        """Delete SSH key"""
+        return self._make_request("DELETE", f"/ssh-keys/{key_id}")
+
+    # Inference Management Methods
+    def get_available_gpus(self):
+        """Get available GPUs"""
+        return self._make_request("GET", "/inference/gpus")
+
+    def load_model_for_inference(self, model_name: str, gpu: str, force: bool = False):
+        """Load model for inference"""
+        return self._make_request("POST", "/inference/load",
+                                  json={"model_name": model_name, "gpu": gpu, "force": force})
+
+    def unload_model_from_inference(self, session_id: int):
+        """Unload model from inference"""
+        return self._make_request("POST", "/inference/unload",
+                                  json={"session_id": session_id})
+
+    def get_loaded_models(self):
+        """Get currently loaded models"""
+        return self._make_request("GET", "/inference/loaded-models")
+
+
+# Initialize global client
+model_client = ModelManagementClient()
+
 
 @click.group()
 def cli():
     pass
 
+
+# Authentication Commands
+@click.group()
+def auth():
+    """Authentication commands"""
+    pass
+
+
+@auth.command("login")
+@click.option('--username', prompt=True, hide_input=True, help='Username for authentication')
+@click.option('--password', prompt=True, hide_input=True, help='Password for authentication')
+def login(username: str, password: str):
+    """Login and save authentication tokens"""
+    try:
+        result = model_client.authenticate(username, password)
+        click.echo(f"✅ Successfully authenticated! Token expires in {result.get('expires_in', 'unknown')} seconds.")
+    except Exception as e:
+        click.echo(f"❌ Authentication failed: {e}")
+        exit(1)
+
+
+@auth.command("logout")
+def logout():
+    """Logout and clear saved tokens"""
+    if os.path.exists(CONFIG_FILE):
+        os.remove(CONFIG_FILE)
+    click.echo("✅ Successfully logged out!")
+
+
+# Model Management Commands
+@click.group()
+def models():
+    """Model management commands"""
+    pass
+
+
+@models.command("register")
+@click.option('--name', required=True, help='Name for the model')
+@click.option('--type', 'model_type', type=click.Choice(['huggingface', 'gitlab']),
+              required=True, help='Type of model (huggingface or gitlab)')
+@click.option('--project-name', required=True, help='GitLab project name')
+@click.option('--url', help='HuggingFace URL (required for huggingface models)')
+@click.option('--api-key', help='HuggingFace API key (optional, for private models)')
+@click.option('--force', is_flag=True, help='Force registration if model already exists')
+def register_model(name: str, model_type: str, project_name: str, url: Optional[str],
+                   api_key: Optional[str], force: bool):
+    """Register a new model in the system"""
+    try:
+        is_huggingface = model_type == 'huggingface'
+
+        if is_huggingface and not url:
+            click.echo("❌ URL is required for HuggingFace models")
+            exit(1)
+
+        result = model_client.register_model(
+            name=name,
+            is_huggingface=is_huggingface,
+            project_name=project_name,
+            url=url,
+            api_key=api_key,
+            force=force
+        )
+
+        click.echo(f"✅ Model '{name}' registered successfully!")
+        if is_huggingface:
+            click.echo("📥 HuggingFace model downloaded and uploaded to GitLab automatically")
+        else:
+            click.echo("📂 GitLab project created. You can now upload your model files using SSH")
+
+    except Exception as e:
+        click.echo(f"❌ Failed to register model: {e}")
+        exit(1)
+
+
+@models.command("list")
+@click.option('--format', 'output_format', type=click.Choice(['table', 'json']),
+              default='table', help='Output format')
+def list_models(output_format: str):
+    """List all registered models"""
+    try:
+        result = model_client.get_models()
+        models_list = result.get('models', [])
+
+        if not models_list:
+            click.echo("No models found")
+            return
+
+        if output_format == 'json':
+            click.echo(json.dumps(result, indent=2))
+        else:
+            click.echo(f"\n📋 Found {result.get('total', 0)} models:\n")
+            for model in models_list:
+                model_type = "🤗 HuggingFace" if model['is_huggingFace'] else "🦊 GitLab"
+                click.echo(f"  • {model['name']} ({model_type})")
+                click.echo(f"    Project: {model.get('project_name', 'N/A')}")
+                if model.get('url'):
+                    click.echo(f"    URL: {model['url']}")
+                click.echo(f"    Created: {model['created_at']}")
+                click.echo()
+
+    except Exception as e:
+        click.echo(f"❌ Failed to list models: {e}")
+        exit(1)
+
+
+@models.command("details")
+@click.argument('model_name')
+@click.option('--format', 'output_format', type=click.Choice(['table', 'json']),
+              default='table', help='Output format')
+def model_details(model_name: str, output_format: str):
+    """Get detailed information about a specific model"""
+    try:
+        model = model_client.get_model(model_name)
+
+        if output_format == 'json':
+            click.echo(json.dumps(model, indent=2))
+        else:
+            model_type = "🤗 HuggingFace" if model['is_huggingFace'] else "🦊 GitLab"
+            click.echo(f"\n📋 Model Details: {model['name']}")
+            click.echo(f"  Type: {model_type}")
+            click.echo(f"  Email: {model['email']}")
+            click.echo(f"  Project: {model.get('project_name', 'N/A')}")
+            if model.get('url'):
+                click.echo(f"  URL: {model['url']}")
+            click.echo(f"  Created: {model['created_at']}")
+
+    except Exception as e:
+        click.echo(f"❌ Failed to get model details: {e}")
+        exit(1)
+
+
+@models.command("delete")
+@click.argument('model_name')
+@click.option('--confirm', is_flag=True, help='Skip confirmation prompt')
+def delete_model(model_name: str, confirm: bool):
+    """Delete a model"""
+    try:
+        if not confirm:
+            if not click.confirm(f"Are you sure you want to delete model '{model_name}'?"):
+                click.echo("Deletion cancelled")
+                return
+
+        model_client.delete_model(model_name)
+        click.echo(f"✅ Model '{model_name}' deleted successfully!")
+
+    except Exception as e:
+        click.echo(f"❌ Failed to delete model: {e}")
+        exit(1)
+
+
+# SSH Key Management Commands
+@click.group()
+def ssh():
+    """SSH key management commands"""
+    pass
+
+
+@ssh.command("add")
+@click.option('--title', required=True, help='Title for the SSH key')
+@click.option('--key-file', help='Path to SSH public key file')
+@click.option('--key', help='SSH public key content (if not using --key-file)')
+def add_ssh_key(title: str, key_file: Optional[str], key: Optional[str]):
+    """Add SSH key to GitLab"""
+    try:
+        if key_file and key:
+            click.echo("❌ Please specify either --key-file or --key, not both")
+            exit(1)
+
+        if key_file:
+            if not os.path.exists(key_file):
+                click.echo(f"❌ Key file not found: {key_file}")
+                exit(1)
+            with open(key_file, 'r') as f:
+                key = f.read().strip()
+        elif not key:
+            click.echo("❌ Please specify either --key-file or --key")
+            exit(1)
+
+        result = model_client.add_ssh_key(title, key)
+        click.echo(f"✅ SSH key '{title}' added successfully!")
+        click.echo(f"   ID: {result.get('id')}")
+        if result.get('fingerprint'):
+            click.echo(f"   Fingerprint: {result['fingerprint']}")
+
+    except Exception as e:
+        click.echo(f"❌ Failed to add SSH key: {e}")
+        exit(1)
+
+
+@ssh.command("list")
+@click.option('--format', 'output_format', type=click.Choice(['table', 'json']),
+              default='table', help='Output format')
+def list_ssh_keys(output_format: str):
+    """List all SSH keys"""
+    try:
+        result = model_client.get_ssh_keys()
+        keys = result.get('ssh_keys', [])
+
+        if not keys:
+            click.echo("No SSH keys found")
+            return
+
+        if output_format == 'json':
+            click.echo(json.dumps(result, indent=2))
+        else:
+            click.echo(f"\n🔑 Found {result.get('total', 0)} SSH keys:\n")
+            for ssh_key in keys:
+                click.echo(f"  • {ssh_key['title']} (ID: {ssh_key['id']})")
+                if ssh_key.get('fingerprint'):
+                    click.echo(f"    Fingerprint: {ssh_key['fingerprint']}")
+                click.echo(f"    Created: {ssh_key['created_at']}")
+                click.echo()
+
+    except Exception as e:
+        click.echo(f"❌ Failed to list SSH keys: {e}")
+        exit(1)
+
+
+@ssh.command("delete")
+@click.argument('key_id')
+@click.option('--confirm', is_flag=True, help='Skip confirmation prompt')
+def delete_ssh_key(key_id: str, confirm: bool):
+    """Delete SSH key"""
+    try:
+        if not confirm:
+            if not click.confirm(f"Are you sure you want to delete SSH key '{key_id}'?"):
+                click.echo("Deletion cancelled")
+                return
+
+        model_client.delete_ssh_key(key_id)
+        click.echo(f"✅ SSH key '{key_id}' deleted successfully!")
+
+    except Exception as e:
+        click.echo(f"❌ Failed to delete SSH key: {e}")
+        exit(1)
+
+
+# Inference Management Commands
+@click.group()
+def inference():
+    """Inference management commands"""
+    pass
+
+
+@inference.command("gpus")
+@click.option('--format', 'output_format', type=click.Choice(['table', 'json']),
+              default='table', help='Output format')
+def list_gpus(output_format: str):
+    """List available GPUs"""
+    try:
+        result = model_client.get_available_gpus()
+        gpus = result.get('gpus', [])
+
+        if output_format == 'json':
+            click.echo(json.dumps(result, indent=2))
+        else:
+            click.echo(f"\n🖥️  Available GPUs ({result.get('total', 0)}):\n")
+            for gpu in gpus:
+                click.echo(f"  • {gpu.get('InstanceType', 'N/A')}")
+                click.echo(f"    Model: {gpu.get('GpuModel', 'N/A')}")
+                click.echo(f"    Count: {gpu.get('GpuCount', 'N/A')}")
+                click.echo(f"    Memory: {gpu.get('MemoryGiB', 'N/A')} GiB")
+                click.echo(f"    Price: €{gpu.get('PriceEUR', 'N/A')}")
+                click.echo(f"    Region: {gpu.get('Region', 'N/A')}")
+                click.echo()
+
+    except Exception as e:
+        click.echo(f"❌ Failed to list GPUs: {e}")
+        exit(1)
+
+
+@inference.command("load")
+@click.argument('model_name')
+@click.option('--gpu', help='GPU identifier (will show available GPUs if not specified)')
+@click.option('--force', is_flag=True, help='Force loading even if model already loaded')
+def load_model(model_name: str, gpu: Optional[str], force: bool):
+    """Load model for inference"""
+    try:
+        # If no GPU specified, show available GPUs
+        if not gpu:
+            gpus_result = model_client.get_available_gpus()
+            gpus = gpus_result.get('gpus', [])
+
+            if not gpus:
+                click.echo("❌ No GPUs available")
+                exit(1)
+
+            click.echo("Available GPUs:")
+            for i, gpu_info in enumerate(gpus):
+                click.echo(f"  {i}: {gpu_info.get('InstanceType', 'N/A')} - {gpu_info.get('GpuModel', 'N/A')}")
+
+            gpu_choice = click.prompt("Select GPU number", type=int)
+            if gpu_choice < 0 or gpu_choice >= len(gpus):
+                click.echo("❌ Invalid GPU selection")
+                exit(1)
+
+            gpu = gpus[gpu_choice].get('InstanceType', f'GPU-{gpu_choice}')
+
+        result = model_client.load_model_for_inference(model_name, gpu, force)
+        click.echo(f"✅ Model '{model_name}' loading initiated on {gpu}!")
+
+        if result.get('estimated_time'):
+            click.echo(f"⏱️  Estimated loading time: {result['estimated_time']} seconds")
+
+    except Exception as e:
+        click.echo(f"❌ Failed to load model: {e}")
+        exit(1)
+
+
+@inference.command("unload")
+@click.option('--session-id', type=int, help='Session ID to unload (will show loaded models if not specified)')
+@click.option('--model-name', help='Unload by model name (alternative to session-id)')
+def unload_model(session_id: Optional[int], model_name: Optional[str]):
+    """Unload model from inference"""
+    try:
+        # If no session ID specified, show loaded models
+        if not session_id and not model_name:
+            loaded_result = model_client.get_loaded_models()
+            loaded_models = loaded_result.get('loaded_models', [])
+
+            if not loaded_models:
+                click.echo("No models currently loaded")
+                return
+
+            click.echo("Currently loaded models:")
+            for model in loaded_models:
+                click.echo(f"  Session {model.get('session_id')}: {model.get('model_name')} on {model.get('gpu_id')}")
+
+            session_choice = click.prompt("Enter session ID to unload", type=int)
+            session_id = session_choice
+        elif model_name and not session_id:
+            # Find session ID by model name
+            loaded_result = model_client.get_loaded_models()
+            loaded_models = loaded_result.get('loaded_models', [])
+
+            matching_sessions = [m for m in loaded_models if m.get('model_name') == model_name]
+            if not matching_sessions:
+                click.echo(f"❌ Model '{model_name}' is not currently loaded")
+                exit(1)
+            elif len(matching_sessions) > 1:
+                click.echo(f"Multiple sessions found for '{model_name}':")
+                for model in matching_sessions:
+                    click.echo(f"  Session {model.get('session_id')}: on {model.get('gpu_id')}")
+                session_id = click.prompt("Enter session ID to unload", type=int)
+            else:
+                session_id = matching_sessions[0].get('session_id')
+
+        result = model_client.unload_model_from_inference(session_id)
+        click.echo(f"✅ Model unloaded successfully! (Session {session_id})")
+
+    except Exception as e:
+        click.echo(f"❌ Failed to unload model: {e}")
+        exit(1)
+
+
+@inference.command("status")
+@click.option('--format', 'output_format', type=click.Choice(['table', 'json']),
+              default='table', help='Output format')
+def inference_status(output_format: str):
+    """Show currently loaded models"""
+    try:
+        result = model_client.get_loaded_models()
+        loaded_models = result.get('loaded_models', [])
+
+        if output_format == 'json':
+            click.echo(json.dumps(result, indent=2))
+        else:
+            if not loaded_models:
+                click.echo("No models currently loaded for inference")
+                return
+
+            click.echo(f"\n🚀 Currently loaded models ({result.get('total', 0)}):\n")
+            for model in loaded_models:
+                click.echo(f"  • {model.get('model_name')} (Session {model.get('session_id')})")
+                click.echo(f"    GPU: {model.get('gpu_id')}")
+                click.echo(f"    Loaded: {model.get('load_time')}")
+                if model.get('memory_usage'):
+                    click.echo(f"    Memory: {model['memory_usage']} MB")
+                click.echo()
+
+    except Exception as e:
+        click.echo(f"❌ Failed to get inference status: {e}")
+        exit(1)
+
+# Workflow Management Commands
+@click.group()
+def workflow():
+    """Inference management commands"""
+    pass
+
+# Helper Commands
+@workflow.command("workflow")
+@click.argument('model_name')
+@click.option('--type', 'model_type', type=click.Choice(['huggingface', 'gitlab']),
+              required=True, help='Type of model')
+@click.option('--project-name', required=True, help='GitLab project name')
+@click.option('--url', help='HuggingFace URL (required for huggingface models)')
+@click.option('--api-key', help='HuggingFace API key (optional)')
+@click.option('--ssh-key-file', help='Path to SSH public key file (for GitLab models)')
+@click.option('--ssh-key-title', help='Title for SSH key (for GitLab models)')
+@click.option('--local-model-path', help='Path to local model files (for GitLab models)')
+@click.option('--auto-load', is_flag=True, help='Automatically load model for inference after upload')
+def complete_workflow(model_name: str, model_type: str, project_name: str, url: Optional[str],
+                      api_key: Optional[str], ssh_key_file: Optional[str], ssh_key_title: Optional[str],
+                      local_model_path: Optional[str], auto_load: bool):
+    """Complete workflow: register model, upload (if GitLab), and optionally load for inference"""
+
+    try:
+        click.echo(f"🚀 Starting complete workflow for '{model_name}'...")
+
+        # Step 1: Register model
+        click.echo("\n📝 Step 1: Registering model...")
+        is_huggingface = model_type == 'huggingface'
+
+        if is_huggingface and not url:
+            click.echo("❌ URL is required for HuggingFace models")
+            exit(1)
+
+        model_client.register_model(
+            name=model_name,
+            is_huggingface=is_huggingface,
+            project_name=project_name,
+            url=url,
+            api_key=api_key
+        )
+        click.echo("✅ Model registered successfully!")
+
+        # Step 2: For GitLab models, handle SSH and upload
+        if model_type == 'gitlab':
+            click.echo("\n🔑 Step 2: Setting up SSH access...")
+
+            # Add SSH key if provided
+            if ssh_key_file and ssh_key_title:
+                if os.path.exists(ssh_key_file):
+                    with open(ssh_key_file, 'r') as f:
+                        ssh_key_content = f.read().strip()
+
+                    try:
+                        model_client.add_ssh_key(ssh_key_title, ssh_key_content)
+                        click.echo(f"✅ SSH key '{ssh_key_title}' added successfully!")
+                    except Exception as e:
+                        if "already exists" in str(e).lower():
+                            click.echo(f"ℹ️  SSH key already exists, continuing...")
+                        else:
+                            raise e
+                else:
+                    click.echo(f"❌ SSH key file not found: {ssh_key_file}")
+                    exit(1)
+
+            # If local model path provided, show git instructions
+            if local_model_path:
+                click.echo(f"\n📂 Step 3: Upload model files...")
+                click.echo("To upload your model files, run the following commands:")
+                click.echo(f"")
+                click.echo(f"  git clone git@gitlab.regolo.ai:<username>/{project_name}.git")
+                click.echo(f"  cd {project_name}")
+                click.echo(f"  cp -r {local_model_path}/* .")
+                click.echo(f"  git add .")
+                click.echo(f'  git commit -m "Add model files"')
+                click.echo(f"  git push origin main")
+                click.echo(f"")
+
+                if click.confirm("Have you completed the git upload?"):
+                    click.echo("✅ Model files uploaded!")
+                else:
+                    click.echo("⏸️  Workflow paused. Complete the git upload and then run the load command manually.")
+                    return
+
+        # Step 3: Auto-load for inference if requested
+        if auto_load:
+            click.echo(f"\n🖥️  Step 3: Loading model for inference...")
+
+            # Get available GPUs
+            gpus_result = model_client.get_available_gpus()
+            gpus = gpus_result.get('gpus', [])
+
+            if not gpus:
+                click.echo("❌ No GPUs available for inference")
+                return
+
+            # Use first available GPU or let user choose
+            if len(gpus) == 1:
+                gpu = gpus[0].get('InstanceType', 'GPU-0')
+                click.echo(f"Using GPU: {gpu}")
+            else:
+                click.echo("Available GPUs:")
+                for i, gpu_info in enumerate(gpus):
+                    click.echo(f"  {i}: {gpu_info.get('InstanceType', 'N/A')} - {gpu_info.get('GpuModel', 'N/A')}")
+
+                gpu_choice = click.prompt("Select GPU number", type=int)
+                if gpu_choice < 0 or gpu_choice >= len(gpus):
+                    click.echo("❌ Invalid GPU selection")
+                    return
+
+                gpu = gpus[gpu_choice].get('InstanceType', f'GPU-{gpu_choice}')
+
+            # Load model for inference
+            model_client.load_model_for_inference(model_name, gpu)
+            click.echo(f"✅ Model '{model_name}' loading initiated on {gpu}!")
+
+        click.echo(f"\n🎉 Workflow completed successfully!")
+        click.echo(f"   Model: {model_name}")
+        click.echo(f"   Type: {model_type}")
+        click.echo(f"   Project: {project_name}")
+        if auto_load:
+            click.echo(f"   Status: Loading for inference...")
+
+    except Exception as e:
+        click.echo(f"❌ Workflow failed: {e}")
+        exit(1)
+
+
+# Existing commands (keeping them)
 @click.command("get-available-models", help="Gets available models")
 @click.option('--api-key', required=True, help='The API key used to query Regolo.')
-@click.option('--model-type', default="", required=False, type=click.Choice(['', 'chat', 'image_generation', "embedding", "audio_transcription"]), help='Thee type of the models you want to retrieve (returns all by default)')
+@click.option('--model-type', default="", required=False,
+              type=click.Choice(['', 'chat', 'image_generation', "embedding", "audio_transcription"]),
+              help='The type of the models you want to retrieve (returns all by default)')
 def get_available_models(api_key: str, model_type: str):
     available_models: list[dict] = regolo.RegoloClient.get_available_models(api_key, model_info=True)
     output_models: list[tuple] = []
@@ -33,11 +723,11 @@ def get_available_models(api_key: str, model_type: str):
 
 
 @click.command("chat", help="Allows chatting with LLMs")
-@click.option('--no-hide',required=False, is_flag=True, default=False, help='Do not hide the API key when typing')
+@click.option('--no-hide', required=False, is_flag=True, default=False, help='Do not hide the API key when typing')
 @click.option('--api-key', required=False, help='The API key used to chat with Regolo.')
 @click.option('--disable-newlines', required=False, is_flag=True, default=False,
               help='Disable new lines, they will be replaced with space character')
-def chat(no_hide: bool, api_key:str, disable_newlines: bool):
+def chat(no_hide: bool, api_key: str, disable_newlines: bool):
     if not api_key:
         api_key = click.prompt("Insert your regolo API key", hide_input=not no_hide)
     available_models: list[dict] = regolo.RegoloClient.get_available_models(api_key, model_info=True)
@@ -102,14 +792,14 @@ def chat(no_hide: bool, api_key:str, disable_newlines: bool):
 @click.option('--api-key', required=True, help='The API key used generate.')
 @click.option('--model', required=True, help="The number of images to generate. (Defaults to 1)")
 @click.option('--save-path', help='The path in which to save the images. (Defaults to ../images)')
-@click.option('--prompt', default="A generic image", help='The text prompt for image generation. (Defaults to "A generic image")')
+@click.option('--prompt', default="A generic image",
+              help='The text prompt for image generation. (Defaults to "A generic image")')
 @click.option('--n', default=1, help='The number of images to generate. (Defaults to 1)')
-@click.option('--quality', default="standard", help="The quality of the image that will be generated. The 'hd' value creates images with finer details and greater consistency across the image. (Defaults to 'standard'')")
+@click.option('--quality', default="standard",
+              help="The quality of the image that will be generated. The 'hd' value creates images with finer details and greater consistency across the image. (Defaults to 'standard'')")
 @click.option('--size', default="1024x1024", help="The size of the generated images. (Defaults to '1024x1024')")
 @click.option('--style', default="realistic", help="The style of the generated images. (Defaults to 'realistic')")
-
-def create_image(api_key:str, save_path: str, model: str, prompt: str, n: int, quality: str, size: str, style: str):
-
+def create_image(api_key: str, save_path: str, model: str, prompt: str, n: int, quality: str, size: str, style: str):
     if model is None:
         raise Exception("You must specify a model")
 
@@ -143,16 +833,20 @@ def create_image(api_key:str, save_path: str, model: str, prompt: str, n: int, q
 
 @click.command("transcribe-audio", help='Transcribes audio files')
 @click.option('--api-key', required=True, help='The API key used to transcribe.')
-@click.option('--model', required=True, help='The model to use for transcription (gpt-4o-transcribe, gpt-4o-mini-transcribe, or whisper-1)')
+@click.option('--model', required=True,
+              help='The model to use for transcription (gpt-4o-transcribe, gpt-4o-mini-transcribe, or whisper-1)')
 @click.option('--file-path', required=True, help='Path to the audio file to transcribe')
 @click.option('--save-path', help='Path to save the transcription (prints to console if not specified)')
 @click.option('--language', help='Language of the input audio in ISO-639-1 format (e.g., en, es, fr)')
 @click.option('--prompt', help='Optional text to guide the model\'s style or continue a previous audio segment')
-@click.option('--response-format', default="json", type=click.Choice(['json', 'text', 'srt', 'verbose_json', 'vtt']), help='Format of the transcript output (defaults to json)')
+@click.option('--response-format', default="json", type=click.Choice(['json', 'text', 'srt', 'verbose_json', 'vtt']),
+              help='Format of the transcript output (defaults to json)')
 @click.option('--temperature', type=float, help='Sampling temperature between 0 and 1 (defaults to 0)')
 @click.option('--chunking-strategy', help='Controls audio chunking: "auto" or JSON object string')
-@click.option('--include-logprobs', is_flag=True, help='Include log probabilities (only works with json format and gpt-4o models)')
-@click.option('--timestamp-granularities', multiple=True, type=click.Choice(['word', 'segment']), help='Timestamp granularities (requires verbose_json format)')
+@click.option('--include-logprobs', is_flag=True,
+              help='Include log probabilities (only works with json format and gpt-4o models)')
+@click.option('--timestamp-granularities', multiple=True, type=click.Choice(['word', 'segment']),
+              help='Timestamp granularities (requires verbose_json format)')
 @click.option('--stream', is_flag=True, help='Stream the response (not supported for whisper-1)')
 @click.option('--full-output', is_flag=True, help='Return full API response instead of just text')
 def transcribe_audio(api_key: str, model: str, file_path: str, save_path: str, language: str,
@@ -233,7 +927,18 @@ def transcribe_audio(api_key: str, model: str, file_path: str, save_path: str, l
         raise click.ClickException(f"Transcription failed: {str(e)}")
 
 
+# Add all command groups to CLI
+cli.add_command(auth)
+cli.add_command(models)
+cli.add_command(ssh)
+cli.add_command(inference)
+cli.add_command(workflow)
+
+# Add inference commands
 cli.add_command(transcribe_audio)
 cli.add_command(chat)
 cli.add_command(create_image)
 cli.add_command(get_available_models)
+
+if __name__ == '__main__':
+    cli()
