@@ -235,12 +235,11 @@ def models():
 @click.option('--name', required=True, help='Name for the model')
 @click.option('--type', 'model_type', type=click.Choice(['huggingface', 'gitlab']),
               required=True, help='Type of model (huggingface or gitlab)')
-@click.option('--project-name', required=True, help='GitLab project name')
+@click.option('--project-name', required=False, help='GitLab project name')
 @click.option('--url', help='HuggingFace URL (required for huggingface models)')
 @click.option('--api-key', help='HuggingFace API key (optional, for private models)')
-@click.option('--force', is_flag=True, help='Force registration if model already exists')
 def register_model(name: str, model_type: str, project_name: str, url: Optional[str],
-                   api_key: Optional[str], force: bool):
+                   api_key: Optional[str]):
     """Register a new model in the system"""
     try:
         is_huggingface = model_type == 'huggingface'
@@ -254,8 +253,7 @@ def register_model(name: str, model_type: str, project_name: str, url: Optional[
             is_huggingface=is_huggingface,
             project_name=project_name,
             url=url,
-            api_key=api_key,
-            force=force
+            api_key=api_key
         )
 
         click.echo(f"✅ Model '{name}' registered successfully!")
