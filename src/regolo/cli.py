@@ -172,10 +172,15 @@ class ModelManagementClient:
         """Get available GPUs"""
         return self._make_request("GET", "/inference/gpus")
 
-    def load_model_for_inference(self, model_name: str, gpu: str, force: bool = False):
+    def load_model_for_inference(self, model_name: str, gpu: str, force: bool = False,
+                                 vllm_config: Optional[dict] = None):
         """Load model for inference"""
-        return self._make_request("POST", "/inference/load",
-                                  json={"model_name": model_name, "gpu": gpu, "force": force})
+        data: dict[str, Any]= {"model_name": model_name, "gpu": gpu, "force": force}
+
+        if vllm_config:
+            data["vllm_config"] = vllm_config
+
+        return self._make_request("POST", "/inference/load", json=data)
 
     def unload_model_from_inference(self, session_id: int):
         """Unload model from inference"""
@@ -258,7 +263,7 @@ def register_model(name: str, model_type: str, project_name: str, url: Optional[
 
         click.echo(f"✅ Model '{name}' registered successfully!")
         if is_huggingface:
-            click.echo("📥 HuggingFace model downloaded and uploaded to GitLab automatically")
+            click.echo("📥 HuggingFace model added to your regolo account! (remember to download it if you want to preserve it, since we do not store huggingface models locally)")
         else:
             click.echo("📂 GitLab project created. You can now upload your model files using SSH")
 
@@ -463,42 +468,111 @@ def list_gpus(output_format: str):
         click.echo(f"❌ Failed to list GPUs: {e}")
         exit(1)
 
+def parse_vllm_config_file(file_path: str) -> dict:
+    """Parse vLLM configuration from JSON file"""
+    try:
+        with open(file_path, 'r') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        raise click.ClickException(f"vLLM config file not found: {file_path}")
+    except json.JSONDecodeError as e:
+        raise click.ClickException(f"Invalid JSON in vLLM config file: {e}")
+
+def build_vllm_config_from_options(**kwargs) -> dict:
+    """Build vLLM config dict from command line options, excluding None values"""
+    config = {}
+
+    # Map CLI option names to vLLM config keys
+    option_mapping = {
+        'max_model_len': 'max_model_len',
+        'max_num_batched_tokens': 'max_num_batched_tokens',
+        'gpu_memory_utilization': 'gpu_memory_utilization',
+        'tensor_parallel_size': 'tensor_parallel_size',
+        'disable_log_requests': 'disable_log_requests',
+        'enable_auto_tool_choice': 'enable_auto_tool_choice',
+        'tool_call_parser': 'tool_call_parser',
+        'chat_template': 'chat_template'
+    }
+
+    for cli_key, config_key in option_mapping.items():
+        value = kwargs.get(cli_key)
+        if value is not None:
+            config[config_key] = value
+
+    return config
+
 
 @inference.command("load")
 @click.argument('model_name')
 @click.option('--gpu', help='GPU identifier (will show available GPUs if not specified)')
 @click.option('--force', is_flag=True, help='Force loading even if model already loaded')
-def load_model(model_name: str, gpu: Optional[str], force: bool):
-    """Load model for inference"""
+@click.option('--vllm-config-file', help='Path to JSON file containing vLLM configuration')
+@click.option('--max-model-len', type=int, help='Maximum sequence length for the model')
+@click.option('--max-num-batched-tokens', type=int, help='Maximum number of batched tokens')
+@click.option('--gpu-memory-utilization', type=float, help='GPU memory utilization ratio (0.0-1.0)')
+@click.option('--tensor-parallel-size', type=int, help='Number of GPUs to use for tensor parallelism')
+@click.option('--disable-log-requests', is_flag=True, help='Disable logging of requests')
+@click.option('--enable-auto-tool-choice', is_flag=True, help='Enable automatic tool choice')
+@click.option('--tool-call-parser', help='Tool call parser to use (e.g., llama3_json)')
+@click.option('--chat-template', help='Path to chat template file')
+def load_model(model_name: str, gpu: Optional[str], force: bool, vllm_config_file: Optional[str], **vllm_options):
+    """Load model for inference with optional vLLM configuration"""
     try:
+        # Build vLLM config
+        vllm_config = None
+
+        if vllm_config_file:
+            # Load from file
+            vllm_config = parse_vllm_config_file(vllm_config_file)
+            click.echo(f"Loaded vLLM config from: {vllm_config_file}")
+        else:
+            # Build from command line options
+            vllm_config = build_vllm_config_from_options(**vllm_options)
+            if vllm_config:
+                click.echo("Using vLLM config from command line options")
+
+        # Show vLLM config if present
+        if vllm_config:
+            click.echo("vLLM Configuration:")
+            for key, value in vllm_config.items():
+                click.echo(f"  {key}: {value}")
+            click.echo()
+
         # If no GPU specified, show available GPUs
         if not gpu:
-            gpus_result = model_client.get_available_gpus()
-            gpus = gpus_result.get('gpus', [])
+            # For now, we'll use predefined GPU types since the API structure isn't clear
+            available_gpu_types = [
+                "nvidia-gpu-l4",
+                "nvidia-gpu-l40s",
+                "nvidia-gpu-l40s",
+                "nvidia-gpu-l40s",
+                "nvidia-gpu-h100sxm",
+                "nvidia-gpu-h100sxm",
+                "nvidia-gpu-h100sxm",
+                "nvidia-gpu-a100-80gb",
+                "nvidia-gpu-a100-80gb",
+                "nvidia-gpu-a6000"
+            ]
 
-            if not gpus:
-                click.echo("❌ No GPUs available")
-                exit(1)
-
-            click.echo("Available GPUs:")
-            for i, gpu_info in enumerate(gpus):
-                click.echo(f"  {i}: {gpu_info.get('InstanceType', 'N/A')} - {gpu_info.get('GpuModel', 'N/A')}")
+            click.echo("Available GPU types:")
+            for i, gpu_type in enumerate(available_gpu_types):
+                click.echo(f"  {i}: {gpu_type}")
 
             gpu_choice = click.prompt("Select GPU number", type=int)
-            if gpu_choice < 0 or gpu_choice >= len(gpus):
-                click.echo("❌ Invalid GPU selection")
+            if gpu_choice < 0 or gpu_choice >= len(available_gpu_types):
+                click.echo("Invalid GPU selection")
                 exit(1)
 
-            gpu = gpus[gpu_choice].get('InstanceType', f'GPU-{gpu_choice}')
+            gpu = available_gpu_types[gpu_choice]
 
-        result = model_client.load_model_for_inference(model_name, gpu, force)
-        click.echo(f"✅ Model '{model_name}' loading initiated on {gpu}!")
+        result = model_client.load_model_for_inference(model_name, gpu, force, vllm_config)
+        click.echo(f"Model '{model_name}' loading initiated on {gpu}!")
 
         if result.get('estimated_time'):
-            click.echo(f"⏱️  Estimated loading time: {result['estimated_time']} seconds")
+            click.echo(f"Estimated loading time: {result['estimated_time']} seconds")
 
     except Exception as e:
-        click.echo(f"❌ Failed to load model: {e}")
+        click.echo(f"Failed to load model: {e}")
         exit(1)
 
 
