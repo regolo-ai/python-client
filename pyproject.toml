@@ -28,6 +28,7 @@ dependencies = [
   "pillow~=11.1.0",
   "pydantic~=2.10.6",
   "python-dotenv",
+  "requests",
 ]
 
 optional-dependencies.dev = [

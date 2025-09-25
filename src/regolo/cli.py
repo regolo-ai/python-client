@@ -7,7 +7,7 @@ from typing import Any
 from typing import Optional
 
 import click
-import requests
+import httpx
 from PIL import Image
 
 import regolo
@@ -62,29 +62,29 @@ class ModelManagementClient:
         url = f"{self.base_url}{endpoint}"
 
         try:
-            response = requests.request(method, url, headers=self._headers(), **kwargs)
+            response = httpx.request(method, url, headers=self._headers(), **kwargs)
 
             # If token expired, try to refresh
             if response.status_code == 401 and self.refresh_token:
                 if self._refresh_token():
                     # Retry with new token
-                    response = requests.request(method, url, headers=self._headers(), **kwargs)
+                    response = httpx.request(method, url, headers=self._headers(), **kwargs)
                 else:
                     raise Exception("Authentication failed. Please login again.")
 
             response.raise_for_status()
             return response.json() if response.content else {}
 
-        except requests.exceptions.HTTPError as e:
+        except httpx.HTTPError as e:
             try:
-                error_detail = e.response.json().get('detail', str(e))
+                error_detail = e.request.__dict__.get('detail', str(e))
             except:
                 error_detail = str(e)
             raise Exception(f"API Error: {error_detail}")
 
     def authenticate(self, username: str, password: str):
         """Authenticate and get access tokens"""
-        response = requests.post(
+        response = httpx.post(
             f"{self.base_url}/auth/login",
             json={"username": username, "password": password}
         )
@@ -108,7 +108,7 @@ class ModelManagementClient:
             return False
 
         try:
-            response = requests.post(
+            response = httpx.post(
                 f"{self.base_url}/auth/refresh",
                 json={"refresh_token": self.refresh_token}
             )
