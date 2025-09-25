@@ -518,8 +518,6 @@ def build_vllm_config_from_options(**kwargs) -> dict:
 def load_model(model_name: str, gpu: Optional[str], force: bool, vllm_config_file: Optional[str], **vllm_options):
     """Load model for inference with optional vLLM configuration"""
     try:
-        # Build vLLM config
-        vllm_config = None
 
         if vllm_config_file:
             # Load from file
