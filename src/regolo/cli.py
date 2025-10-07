@@ -28,6 +28,7 @@ class ModelManagementClient:
         self.base_url = base_url
         self.token = None
         self.refresh_token = None
+        self.timeout = 60  # timeout in seconds
         self._load_config()
 
     def _load_config(self):
@@ -62,13 +63,13 @@ class ModelManagementClient:
         url = f"{self.base_url}{endpoint}"
 
         try:
-            response = httpx.request(method, url, headers=self._headers(), **kwargs)
+            response = httpx.request(method, url, headers=self._headers(), timeout=self.timeout, **kwargs)
 
-            # If token expired, try to refresh
+            # If the token expired, try to refresh
             if response.status_code == 401 and self.refresh_token:
                 if self._refresh_token():
                     # Retry with new token
-                    response = httpx.request(method, url, headers=self._headers(), **kwargs)
+                    response = httpx.request(method, url, headers=self._headers(), timeout=self.timeout, **kwargs)
                 else:
                     raise Exception("Authentication failed. Please login again.")
 
@@ -125,14 +126,13 @@ class ModelManagementClient:
         return False
 
     # Model Management Methods
-    def register_model(self, name: str, is_huggingface: bool, project_name: str,
+    def register_model(self, name: str, is_huggingface: bool,
                        url: Optional[str] = None, api_key: Optional[str] = None,
                        force: bool = False):
         """Register a new model"""
         data = {
             "name": name,
             "is_huggingface": is_huggingface,
-            "project_name": project_name,
             "force": force
         }
         if url:
@@ -238,12 +238,11 @@ def models():
 
 @models.command("register")
 @click.option('--name', required=True, help='Name for the model')
-@click.option('--type', 'model_type', type=click.Choice(['huggingface', 'gitlab']),
-              required=True, help='Type of model (huggingface or gitlab)')
-@click.option('--project-name', required=False, help='GitLab project name')
+@click.option('--type', 'model_type', type=click.Choice(['huggingface', 'custom']),
+              required=True, help='Type of model (huggingface or custom)')
 @click.option('--url', help='HuggingFace URL (required for huggingface models)')
 @click.option('--api-key', help='HuggingFace API key (optional, for private models)')
-def register_model(name: str, model_type: str, project_name: str, url: Optional[str],
+def register_model(name: str, model_type: str, url: Optional[str],
                    api_key: Optional[str]):
     """Register a new model in the system"""
     try:
@@ -256,7 +255,6 @@ def register_model(name: str, model_type: str, project_name: str, url: Optional[
         result = model_client.register_model(
             name=name,
             is_huggingface=is_huggingface,
-            project_name=project_name,
             url=url,
             api_key=api_key
         )
@@ -265,7 +263,7 @@ def register_model(name: str, model_type: str, project_name: str, url: Optional[
         if is_huggingface:
             click.echo("📥 HuggingFace model added to your regolo account! (remember to download it if you want to preserve it, since we do not store huggingface models locally)")
         else:
-            click.echo("📂 GitLab project created. You can now upload your model files using SSH")
+            click.echo("📂 Custom project created. You can now upload your model files using SSH")
 
     except Exception as e:
         click.echo(f"❌ Failed to register model: {e}")
@@ -290,9 +288,8 @@ def list_models(output_format: str):
         else:
             click.echo(f"\n📋 Found {result.get('total', 0)} models:\n")
             for model in models_list:
-                model_type = "🤗 HuggingFace" if model['is_huggingFace'] else "🦊 GitLab"
+                model_type = "🤗 HuggingFace" if model['is_huggingFace'] else "custom"
                 click.echo(f"  • {model['name']} ({model_type})")
-                click.echo(f"    Project: {model.get('project_name', 'N/A')}")
                 if model.get('url'):
                     click.echo(f"    URL: {model['url']}")
                 click.echo(f"    Created: {model['created_at']}")
@@ -315,11 +312,10 @@ def model_details(model_name: str, output_format: str):
         if output_format == 'json':
             click.echo(json.dumps(model, indent=2))
         else:
-            model_type = "🤗 HuggingFace" if model['is_huggingFace'] else "🦊 GitLab"
+            model_type = "🤗 HuggingFace" if model['is_huggingFace'] else "custom"
             click.echo(f"\n📋 Model Details: {model['name']}")
             click.echo(f"  Type: {model_type}")
             click.echo(f"  Email: {model['email']}")
-            click.echo(f"  Project: {model.get('project_name', 'N/A')}")
             if model.get('url'):
                 click.echo(f"  URL: {model['url']}")
             click.echo(f"  Created: {model['created_at']}")
@@ -360,7 +356,7 @@ def ssh():
 @click.option('--key-file', help='Path to SSH public key file')
 @click.option('--key', help='SSH public key content (if not using --key-file)')
 def add_ssh_key(title: str, key_file: Optional[str], key: Optional[str]):
-    """Add SSH key to GitLab"""
+    """Add SSH key"""
     try:
         if key_file and key:
             click.echo("❌ Please specify either --key-file or --key, not both")
@@ -539,18 +535,9 @@ def load_model(model_name: str, gpu: Optional[str], force: bool, vllm_config_fil
         # If no GPU specified, show available GPUs
         if not gpu:
             # For now, we'll use predefined GPU types since the API structure isn't clear
-            available_gpu_types = [
-                "nvidia-gpu-l4",
-                "nvidia-gpu-l40s",
-                "nvidia-gpu-l40s",
-                "nvidia-gpu-l40s",
-                "nvidia-gpu-h100sxm",
-                "nvidia-gpu-h100sxm",
-                "nvidia-gpu-h100sxm",
-                "nvidia-gpu-a100-80gb",
-                "nvidia-gpu-a100-80gb",
-                "nvidia-gpu-a6000"
-            ]
+            gpus_result = model_client.get_available_gpus()
+            gpus = gpus_result.get('gpus', [])
+            available_gpu_types = [gpu.get('InstanceType') for gpu in gpus]
 
             click.echo("Available GPU types:")
             for i, gpu_type in enumerate(available_gpu_types):
@@ -658,19 +645,18 @@ def workflow():
 # Helper Commands
 @workflow.command("workflow")
 @click.argument('model_name')
-@click.option('--type', 'model_type', type=click.Choice(['huggingface', 'gitlab']),
+@click.option('--type', 'model_type', type=click.Choice(['huggingface', 'custom']),
               required=True, help='Type of model')
-@click.option('--project-name', required=True, help='GitLab project name')
 @click.option('--url', help='HuggingFace URL (required for huggingface models)')
 @click.option('--api-key', help='HuggingFace API key (optional)')
-@click.option('--ssh-key-file', help='Path to SSH public key file (for GitLab models)')
-@click.option('--ssh-key-title', help='Title for SSH key (for GitLab models)')
-@click.option('--local-model-path', help='Path to local model files (for GitLab models)')
+@click.option('--ssh-key-file', help='Path to SSH public key file (for custom models)')
+@click.option('--ssh-key-title', help='Title for SSH key (for custom models)')
+@click.option('--local-model-path', help='Path to local model files (for custom models)')
 @click.option('--auto-load', is_flag=True, help='Automatically load model for inference after upload')
-def complete_workflow(model_name: str, model_type: str, project_name: str, url: Optional[str],
+def complete_workflow(model_name: str, model_type: str, url: Optional[str],
                       api_key: Optional[str], ssh_key_file: Optional[str], ssh_key_title: Optional[str],
                       local_model_path: Optional[str], auto_load: bool):
-    """Complete workflow: register model, upload (if GitLab), and optionally load for inference"""
+    """Complete workflow: register model, upload (if custom), and optionally load for inference"""
 
     try:
         click.echo(f"🚀 Starting complete workflow for '{model_name}'...")
@@ -686,14 +672,13 @@ def complete_workflow(model_name: str, model_type: str, project_name: str, url: 
         model_client.register_model(
             name=model_name,
             is_huggingface=is_huggingface,
-            project_name=project_name,
             url=url,
             api_key=api_key
         )
         click.echo("✅ Model registered successfully!")
 
-        # Step 2: For GitLab models, handle SSH and upload
-        if model_type == 'gitlab':
+        # Step 2: For custom models, handle SSH and upload
+        if model_type == 'custom':
             click.echo("\n🔑 Step 2: Setting up SSH access...")
 
             # Add SSH key if provided
@@ -719,8 +704,8 @@ def complete_workflow(model_name: str, model_type: str, project_name: str, url: 
                 click.echo(f"\n📂 Step 3: Upload model files...")
                 click.echo("To upload your model files, run the following commands:")
                 click.echo(f"")
-                click.echo(f"  git clone git@gitlab.regolo.ai:<username>/{project_name}.git")
-                click.echo(f"  cd {project_name}")
+                click.echo(f"  git clone git@gitlab.regolo.ai:<username>/{model_name}.git")
+                click.echo(f"  cd {model_name}")
                 click.echo(f"  cp -r {local_model_path}/* .")
                 click.echo(f"  git add .")
                 click.echo(f'  git commit -m "Add model files"')
@@ -745,7 +730,7 @@ def complete_workflow(model_name: str, model_type: str, project_name: str, url: 
                 click.echo("❌ No GPUs available for inference")
                 return
 
-            # Use first available GPU or let user choose
+            # Use the first available GPU or let user choose
             if len(gpus) == 1:
                 gpu = gpus[0].get('InstanceType', 'GPU-0')
                 click.echo(f"Using GPU: {gpu}")
@@ -768,7 +753,7 @@ def complete_workflow(model_name: str, model_type: str, project_name: str, url: 
         click.echo(f"\n🎉 Workflow completed successfully!")
         click.echo(f"   Model: {model_name}")
         click.echo(f"   Type: {model_type}")
-        click.echo(f"   Project: {project_name}")
+        click.echo(f"   Project: {model_name}")
         if auto_load:
             click.echo(f"   Status: Loading for inference...")
 
