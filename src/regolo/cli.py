@@ -79,7 +79,7 @@ class ModelManagementClient:
         except httpx.HTTPError as e:
             try:
                 error_detail = e.request.__dict__.get('detail', str(e))
-            except:
+            except (Exception,):
                 error_detail = str(e)
             raise Exception(f"API Error: {error_detail}")
 
@@ -93,7 +93,7 @@ class ModelManagementClient:
         if response.status_code != 200:
             try:
                 error = response.json().get('detail', 'Authentication failed')
-            except:
+            except (Exception,):
                 error = 'Authentication failed'
             raise Exception(error)
 
@@ -120,7 +120,7 @@ class ModelManagementClient:
                 self.refresh_token = data["refresh_token"]
                 self._save_config()
                 return True
-        except:
+        except (Exception,):
             pass
 
         return False
@@ -252,7 +252,7 @@ def register_model(name: str, model_type: str, url: Optional[str],
             click.echo("❌ URL is required for HuggingFace models")
             exit(1)
 
-        result = model_client.register_model(
+        model_client.register_model(
             name=name,
             is_huggingface=is_huggingface,
             url=url,
@@ -599,7 +599,7 @@ def unload_model(session_id: Optional[int], model_name: Optional[str]):
             else:
                 session_id = matching_sessions[0].get('session_id')
 
-        result = model_client.unload_model_from_inference(session_id)
+        model_client.unload_model_from_inference(session_id)
         click.echo(f"✅ Model unloaded successfully! (Session {session_id})")
 
     except Exception as e:
