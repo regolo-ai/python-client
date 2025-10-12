@@ -1,6 +1,7 @@
 import json
 import os
 import pprint
+import re
 from datetime import datetime
 from io import BytesIO
 from typing import Any
@@ -61,7 +62,7 @@ class ModelManagementClient:
     def _make_request(self, method: str, endpoint: str, **kwargs):
         """Make authenticated API request with token refresh handling"""
         url = f"{self.base_url}{endpoint}"
-
+        response = None
         try:
             response = httpx.request(method, url, headers=self._headers(), timeout=self.timeout, **kwargs)
 
@@ -77,11 +78,12 @@ class ModelManagementClient:
             return response.json() if response.content else {}
 
         except httpx.HTTPError as e:
+
             try:
                 error_detail = e.request.__dict__.get('detail', str(e))
             except (Exception,):
                 error_detail = str(e)
-            raise Exception(f"API Error: {error_detail}")
+            raise Exception(f"API Error: {error_detail}. Request error: {response.json()}")
 
     def authenticate(self, username: str, password: str):
         """Authenticate and get access tokens"""
@@ -190,6 +192,13 @@ class ModelManagementClient:
     def get_loaded_models(self):
         """Get currently loaded models"""
         return self._make_request("GET", "/inference/loaded-models")
+
+    def get_user_inference_status(self, month: Optional[str] = None):
+        """Get inference status for user's models"""
+        params = {}
+        if month:
+            params['month'] = month
+        return self._make_request("GET", "/inference/user-status", params=params)
 
 
 # Initialize global client
@@ -761,6 +770,37 @@ def complete_workflow(model_name: str, model_type: str, url: Optional[str],
         click.echo(f"❌ Workflow failed: {e}")
         exit(1)
 
+
+@inference.command("user-status")
+@click.option('--month', help='Filter by month in MMYYYY format (e.g., 012025 for January 2025)')
+@click.option('--format', 'output_format', type=click.Choice(['table', 'json']),
+              default='table', help='Output format')
+def user_inference_status(month: Optional[str], output_format: str):
+    """Get inference status for your models"""
+    try:
+        # Validate month format if provided
+        if month and not re.match(r'^(0[1-9]|1[0-2])\d{4}$', month):
+            click.echo("❌ Invalid month format. Use MMYYYY format (e.g., 012025)")
+            exit(1)
+
+        result = model_client.get_user_inference_status(month)
+
+        if output_format == 'json':
+            click.echo(json.dumps(result, indent=2))
+        else:
+            if month:
+                click.echo(f"\n📊 Your Inference Status for {month}:\n")
+            else:
+                click.echo(f"\n📊 Your Currently Running Models:\n")
+
+            # Display the status information
+            click.echo(pprint.pformat(result))
+            """else:
+                click.echo("  No models found")"""
+
+    except Exception as e:
+        click.echo(f"❌ Failed to get user inference status: {e}")
+        exit(1)
 
 # Existing commands (keeping them)
 @click.command("get-available-models", help="Gets available models")
