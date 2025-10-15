@@ -637,9 +637,7 @@ def inference_status(output_format: str):
                 click.echo(f"  • {model.get('model_name')} (Session {model.get('session_id')})")
                 click.echo(f"    GPU: {model.get('gpu_id')}")
                 click.echo(f"    Loaded: {model.get('load_time')}")
-                if model.get('memory_usage'):
-                    click.echo(f"    Memory: {model['memory_usage']} MB")
-                click.echo()
+                click.echo(f"    cost_from_start: {model.get('cost')}")
 
     except Exception as e:
         click.echo(f"❌ Failed to get inference status: {e}")
