@@ -22,7 +22,7 @@ To avoid manually passing the API key and model in every request, you can set th
 
 ```python
 regolo.default_key = "<EXAMPLE_KEY>"
-regolo.default_model = "Llama-3.3-70B-Instruct"
+regolo.default_chat_model = "Llama-3.3-70B-Instruct"
 ```
 
 This ensures that all `RegoloClient` instances and static functions will
@@ -115,9 +115,9 @@ Using it is equivalent to updating regolo.default_key when you import regolo.
 
 - "LLM"
 
-You can use this environment variable to insert the default_model.
-You can load it after importing regolo using regolo.default_model_load_from_env_if_exists().
-This is equivalent to updating regolo.default_model when you import regolo.
+You can use this environment variable to insert the default_chat_model.
+You can load it after importing regolo using regolo.default_chat_model_load_from_env_if_exists().
+This is equivalent to updating regolo.default_chat_model when you import regolo.
 
 - "IMAGE_MODEL"
 
@@ -179,7 +179,7 @@ You can use this env variable to set the embedding generation endpoint used by r
 ```python
 import regolo
 regolo.default_key = "<EXAMPLE_KEY>"
-regolo.default_model = "Llama-3.3-70B-Instruct"
+regolo.default_chat_model = "Llama-3.3-70B-Instruct"
 
 # Completions
 
@@ -244,7 +244,7 @@ while True:
 import regolo
 
 regolo.default_key = "<EXAMPLE_KEY>"
-regolo.default_model = "Llama-3.3-70B-Instruct"
+regolo.default_chat_model = "Llama-3.3-70B-Instruct"
 
 client = regolo.RegoloClient()
 
