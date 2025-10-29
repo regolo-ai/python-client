@@ -193,11 +193,16 @@ class ModelManagementClient:
         """Get currently loaded models"""
         return self._make_request("GET", "/inference/loaded-models")
 
-    def get_user_inference_status(self, month: Optional[str] = None):
+    def get_user_inference_status(self, month: Optional[str] = None, time_range_start: Optional[str] = None,
+                                  time_range_end: Optional[str] = None):
         """Get inference status for user's models"""
         params = {}
         if month:
             params['month'] = month
+        if time_range_start:
+            params['time_range_start'] = time_range_start
+        if time_range_end:
+            params['time_range_end'] = time_range_end
         return self._make_request("GET", "/inference/user-status", params=params)
 
 
@@ -771,9 +776,11 @@ def complete_workflow(model_name: str, model_type: str, url: Optional[str],
 
 @inference.command("user-status")
 @click.option('--month', help='Filter by month in MMYYYY format (e.g., 012025 for January 2025)')
+@click.option('--time-range-start', help='Start of time range, ISO 8601 format')
+@click.option('--time-range-end', help='End of time range, ISO 8601 format')
 @click.option('--format', 'output_format', type=click.Choice(['table', 'json']),
               default='table', help='Output format')
-def user_inference_status(month: Optional[str], output_format: str):
+def user_inference_status(month: Optional[str], time_range_start: Optional[str], time_range_end: Optional[str], output_format: str):
     """Get inference status for your models"""
     try:
         # Validate month format if provided
@@ -781,7 +788,7 @@ def user_inference_status(month: Optional[str], output_format: str):
             click.echo("❌ Invalid month format. Use MMYYYY format (e.g., 012025)")
             exit(1)
 
-        result = model_client.get_user_inference_status(month)
+        result = model_client.get_user_inference_status(month, time_range_start, time_range_end)
 
         if output_format == 'json':
             click.echo(json.dumps(result, indent=2))
