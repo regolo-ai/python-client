@@ -1,7 +1,7 @@
 # See https://pre-commit.com for more information
 # See https://pre-commit.com/hooks.html for more hooks
 default_language_version:
-  python: python3.12
+  python: python3.13
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -44,16 +44,11 @@ repos:
       - id: check-json
         language_version: python3.13
 
-  - repo: https://github.com/asottile/reorder_python_imports
-    rev: v3.13.0
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.7.2
     hooks:
-      - id: reorder-python-imports
-        args:
-          - "--application-directories=src"
-        language_version: python3.12
-      - id: reorder-python-imports
-        args:
-          - "--application-directories=src"
+      - id: ruff
+        args: [ "--fix", "--select", "I" ]
         language_version: python3.13
 
   - repo: https://github.com/tox-dev/pyproject-fmt

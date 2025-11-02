@@ -61,6 +61,7 @@ def test_static_chat_completions() -> None:
 
 def test_static_image_create() -> None:
     from io import BytesIO
+
     from PIL import Image
 
     import regolo

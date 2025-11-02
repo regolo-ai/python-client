@@ -4,8 +4,7 @@ import pprint
 import re
 from datetime import datetime
 from io import BytesIO
-from typing import Any
-from typing import Optional
+from typing import Any, Optional
 
 import click
 import httpx

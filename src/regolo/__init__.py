@@ -10,6 +10,7 @@ default_chat_model = None
 default_image_generation_model = None
 default_embedder_model = None
 default_audio_transcription_model = None
+default_reranker_model = None
 
 # if your server has a /models openai compatible endpoint, you can enable model availability checks
 enable_model_checks = False

@@ -1,11 +1,8 @@
-from typing import Dict
-from typing import List
-from typing import Optional
+from typing import Dict, List, Optional
 
 import httpx
 
-from regolo.instance.structures.conversation_model import Conversation
-from regolo.instance.structures.conversation_model import ConversationLine
+from regolo.instance.structures.conversation_model import Conversation, ConversationLine
 from regolo.keys.keys import KeysHandler
 from regolo.models.models import ModelsHandler
 
@@ -26,6 +23,7 @@ class RegoloInstance:
                  embedder_model: Optional[str],
                  image_generation_model: Optional[str],
                  audio_transcription_model: Optional[str],
+                 reranker_model: Optional[str],
                  api_key: str,
                  base_url: str,
                  client: Optional[httpx.Client],
@@ -46,6 +44,7 @@ class RegoloInstance:
         self.image_generation_model: Optional[str] = image_generation_model
         self.audio_transcription_model: Optional[str] = audio_transcription_model
         self.embedder_model: Optional[str] = embedder_model
+        self.reranker_model: Optional[str] = reranker_model
         self.base_url: str = base_url
 
     def get_client(self) -> httpx.Client:
@@ -95,6 +94,14 @@ class RegoloInstance:
         :return: The embedder model as a string.
         """
         return self.embedder_model
+
+    def get_reranker_model(self) -> Optional[str]:
+        """
+        Returns the reranker model.
+
+        :return: The reranker model as a string
+        """
+        return self.reranker_model
 
     def change_model(self, new_model: str) -> None:
         """

@@ -1,9 +1,7 @@
 import json
-from typing import Dict
-from typing import List
+from typing import Dict, List
 
-from pydantic import BaseModel
-from pydantic import StrictStr
+from pydantic import BaseModel, StrictStr
 
 
 class ConversationLine(BaseModel):

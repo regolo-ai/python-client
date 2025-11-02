@@ -2,21 +2,14 @@ import json
 import os
 from base64 import b64decode
 from types import GeneratorType
-from typing import Any
-from typing import Callable
-from typing import Dict
-from typing import Generator
-from typing import List
-from typing import Optional
-from typing import TypeAlias
+from typing import Any, Callable, Dict, Generator, List, Optional, TypeAlias
 
 import httpx
 from json_repair import json_repair
 
 import regolo
 from regolo.instance.regolo_instance import RegoloInstance
-from regolo.instance.structures.conversation_model import Conversation
-from regolo.instance.structures.conversation_model import ConversationLine
+from regolo.instance.structures.conversation_model import Conversation, ConversationLine
 from regolo.keys.keys import KeysHandler
 from regolo.models.models import ModelsHandler
 
@@ -26,6 +19,7 @@ CHAT_COMPLETIONS_URL_PATH = "/v1/chat/completions"
 IMAGE_GENERATION_URL_PATH = "/v1/images/generations"
 EMBEDDINGS_URL_PATH = "/v1/embeddings"
 AUDIO_TRANSCRIPTION_URL_PATH = "/v1/audio/transcriptions"
+RERANK_URL_PATH = "/v1/rerank"
 
 os.environ["REGOLO_URL"] = REGOLO_URL \
     if os.getenv("REGOLO_URL") is None \
@@ -50,6 +44,11 @@ os.environ["EMBEDDINGS_URL_PATH"] = EMBEDDINGS_URL_PATH \
 os.environ["AUDIO_TRANSCRIPTION_URL_PATH"] = AUDIO_TRANSCRIPTION_URL_PATH \
     if os.getenv("AUDIO_TRANSCRIPTION_URL_PATH") is None \
     else os.getenv("AUDIO_TRANSCRIPTION_URL_PATH")
+
+os.environ["RERANK_URL_PATH"] = RERANK_URL_PATH \
+    if os.getenv("RERANK_URL_PATH") is None \
+    else os.getenv("RERANK_URL_PATH")
+
 
 timeout = 500
 
@@ -85,6 +84,7 @@ class RegoloClient:
                  embedder_model: Optional[str] = None,
                  image_generation_model: Optional[str] = None,
                  audio_transcription_model: Optional[str] = None,
+                 reranker_model: Optional[str] = None,
                  api_key: Optional[str] = None,
                  alternative_url: Optional[str] = None,
                  pre_existent_conversation: Optional[Conversation] = None,
@@ -92,8 +92,16 @@ class RegoloClient:
         """
         Initialize the client for regolo.ai HTTP API.
 
-        :param chat_model: The regolo.ai model to use.
+        :param chat_model: The regolo.ai chat model to use.
             (Defaults to regolo.default_model)
+        :param embedder_model: The regolo.ai embedder model to use for text embeddings.
+            (Optional)
+        :param image_generation_model: The regolo.ai model to use for image generation.
+            (Optional)
+        :param audio_transcription_model: The regolo.ai model to use for audio transcription.
+            (Optional)
+        :param reranker_model: The regolo.ai model to use for reranking search results.
+            (Optional)
         :param api_key: The API key for regolo.ai.
             (Defaults to regolo.default_key)
         :param alternative_url: Base URL of the regolo HTTP server.
@@ -118,7 +126,9 @@ class RegoloClient:
                                        image_generation_model=image_generation_model,
                                        audio_transcription_model=audio_transcription_model,
                                        api_key=api_key,
-                                       previous_conversations=pre_existent_conversation, client=client,
+                                       previous_conversations=pre_existent_conversation,
+                                       reranker_model=reranker_model,
+                                       client=client,
                                        base_url=base_url)
 
     @classmethod
@@ -525,7 +535,7 @@ class RegoloClient:
         """
         Runs chat endpoint from RegoloClient instance (self.conversation contains the role-prompts dicts).
 
-        :param user_prompt: Optional prompt to add to conversation before generating response from regolo.ai.
+        :param user_prompt: Optional prompt to add to conversation before generating the response from regolo.ai.
         :param stream: Whether to stream the prompt from regolo.ai.
         :param max_tokens: Maximum number of tokens to generate. (Defaults to 200)
         :param temperature: Sampling temperature for randomness.
@@ -598,7 +608,7 @@ class RegoloClient:
         :param base_url: Base URL of the regolo HTTP server. (Defaults to REGOLO_URL)
         :param full_output: Whether to return full response. (Defaults to False)
 
-        :return full_output=True: Dict containing the text of response.
+        :return full_output=True: Dict containing the text of the response.
         :return full_output=False: List containing the images decoded as bytes.
         """
 
@@ -669,7 +679,7 @@ class RegoloClient:
         :param style: The style of the generated images. (Defaults to "vivid")
         :param full_output: Whether to return full response. (Defaults to False)
 
-        :return full_output=True: Dict containing the text of response.
+        :return full_output=True: Dict containing the text of the response.
         :return full_output=False: List containing the images decoded as bytes.
         """
 
@@ -1009,6 +1019,149 @@ class RegoloClient:
             stream=stream,
             temperature=temperature,
             timestamp_granularities=timestamp_granularities,
+            client=self.instance.get_client(),
+            base_url=base_url,
+            full_output=full_output
+        )
+
+    @staticmethod
+    def static_rerank(query: str,
+                      documents: List[str] | List[Dict[str, Any]],
+                      model: Optional[str] = None,
+                      api_key: Optional[str] = None,
+                      top_n: Optional[int] = None,
+                      rank_fields: Optional[List[str]] = None,
+                      return_documents: bool = True,
+                      max_chunks_per_doc: Optional[int] = None,
+                      client: Optional[httpx.Client] = None,
+                      base_url: str = os.getenv("REGOLO_URL"),
+                      full_output: bool = False) -> List[Dict[str, Any]] | dict:
+        """
+        Reranks a list of documents based on their relevance to a query using regolo.ai reranking model.
+
+        :param query: The search query to compare documents against.
+        :param documents: List of documents to rerank.
+        Can be strings or dicts with text fields.
+        :param model: The regolo.ai reranking model to use.
+        (Optional)
+        :param api_key: The API key for regolo.ai.
+        (Optional)
+        :param top_n: Number of most relevant documents to return.
+        Returns all if not specified.
+        (Optional)
+        :param rank_fields: For structured documents, specify which fields to rank by.
+        (Optional)
+        :param return_documents: Whether to return document content in results.
+        (Defaults to True)
+        :param max_chunks_per_doc: Maximum number of chunks per document.
+        (Optional)
+        :param client: httpx client to use.
+        (Optional)
+        :param base_url: Base URL of the regolo HTTP server.
+        (Defaults to REGOLO_URL)
+        :param full_output: Whether to return the full response.
+        (Defaults to False)
+
+        :return full_output=True: Dict containing the full response from regolo.ai.
+        :return full_output=False: List of dicts with 'index', 'relevance_score', and optionally 'document'.
+        """
+
+        # Use the default API key if none is provided
+        if api_key is None:
+            api_key = regolo.default_key
+
+        # Validate API key
+        api_key = KeysHandler.check_key(api_key)
+
+        # Use the default reranking model if not specified
+        if model is None:
+            model = regolo.default_reranker_model
+
+        # Validate the selected model
+        ModelsHandler.check_model(model=model, api_key=api_key, base_url=base_url)
+
+        # Create a new HTTP client if none is provided
+        if client is None:
+            client = httpx.Client()
+
+        # Construct the payload for the API request
+        payload = {
+            "model": model,
+            "query": query,
+            "documents": documents,
+            "top_n": top_n,
+            "rank_fields": rank_fields,
+            "return_documents": return_documents,
+            "max_chunks_per_doc": max_chunks_per_doc
+        }
+
+        # Remove None values from payload to avoid unnecessary parameters
+        payload = {k: v for k, v in payload.items() if v is not None}
+
+        # Set authorization header
+        headers = {"Authorization": api_key}
+
+        # Send a synchronous POST request
+        response = safe_post(
+            client=client,
+            url_to_query=f"{base_url}{os.getenv('RERANK_URL_PATH')}",
+            json_to_query=payload,
+            headers_to_query=headers
+        )
+
+        response_json = response.json()
+
+        if full_output:
+            return response_json
+        else:
+            # Return just the ranked results
+            return response_json.get("results", [])
+
+    def rerank(self,
+               query: str,
+               documents: List[str] | List[Dict[str, Any]],
+               top_n: Optional[int] = None,
+               rank_fields: Optional[List[str]] = None,
+               return_documents: bool = True,
+               max_chunks_per_doc: Optional[int] = None,
+               full_output: bool = False) -> List[Dict[str, Any]] | dict:
+        """
+        Reranks a list of documents based on their relevance to a query using regolo.ai reranking model
+        from RegoloClient instance.
+
+        :param query: The search query to compare documents against.
+        :param documents: List of documents to rerank.
+        Can be strings or dicts with text fields.
+        :param top_n: Number of most relevant documents to return.
+        Returns all if not specified.
+        (Optional)
+        :param rank_fields: For structured documents, specify which fields to rank by.
+        (Optional)
+        :param return_documents: Whether to return document content in results.
+        (Defaults to True)
+        :param max_chunks_per_doc: Maximum number of chunks per document.
+        (Optional)
+        :param full_output: Whether to return the full response.
+        (Defaults to False)
+
+        :return full_output=True: Dict containing the full response from regolo.ai.
+        :return full_output=False: List of dicts with 'index', 'relevance_score', and optionally 'document'.
+        """
+
+        if self.instance.get_base_url() is None:
+            base_url = os.getenv("REGOLO_URL")
+        else:
+            base_url = self.instance.get_base_url()
+
+        return self.static_rerank(
+            query=query,
+            documents=documents,
+            model=self.instance.get_reranker_model(),
+            api_key=self.instance.get_api_key(),
+            top_n=top_n,
+            rank_fields=rank_fields,
+            return_documents=return_documents,
+            max_chunks_per_doc=max_chunks_per_doc,
             client=self.instance.get_client(),
             base_url=base_url,
             full_output=full_output
