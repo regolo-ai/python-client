@@ -898,7 +898,9 @@ def chat(no_hide: bool, api_key: str, disable_newlines: bool):
               help="The quality of the image that will be generated. The 'hd' value creates images with finer details and greater consistency across the image. (Defaults to 'standard'')")
 @click.option('--size', default="1024x1024", help="The size of the generated images. (Defaults to '1024x1024')")
 @click.option('--style', default="realistic", help="The style of the generated images. (Defaults to 'realistic')")
-def create_image(api_key: str, save_path: str, model: str, prompt: str, n: int, quality: str, size: str, style: str):
+@click.option('--output-file-format', default="png", type=click.Choice(['png', 'jpg', 'jpeg', 'webp', 'bmp'], case_sensitive=False),
+              help="The output file format for the generated images. (Defaults to 'png')")
+def create_image(api_key: str, save_path: str, model: str, prompt: str, n: int, quality: str, size: str, style: str, output_file_format: str):
     if model is None:
         raise Exception("You must specify a model")
 
@@ -914,20 +916,28 @@ def create_image(api_key: str, save_path: str, model: str, prompt: str, n: int, 
 
     images_bytes = client.create_image(prompt=prompt, n=n, quality=quality, size=size, style=style)
 
+    # Normalize format extension
+    ext = output_file_format.lower()
+    if ext == 'jpg':
+        ext = 'jpeg'
+
     for image_bytes in images_bytes:
         image = Image.open(BytesIO(image_bytes))
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-        filepath = os.path.join(save_path, f"{timestamp}.png")
+        filepath = os.path.join(save_path, f"{timestamp}.{ext}")
 
-        # If it already exists, use _1, _2, etc.
         i = 1
         while os.path.exists(filepath):
-            filename = f"{timestamp}_{i}{IMAGE_EXTENSIONS[0]}"
+            filename = f"{timestamp}_{i}.{ext}"
             filepath = os.path.join(save_path, filename)
             i += 1
 
-        image.save(filepath)
+        # Save with appropriate format
+        if ext == 'jpeg':
+            image.save(filepath, 'JPEG')
+        else:
+            image.save(filepath, ext.upper())
 
 
 @click.command("transcribe-audio", help='Transcribes audio files')
@@ -1026,6 +1036,144 @@ def transcribe_audio(api_key: str, model: str, file_path: str, save_path: str, l
         raise click.ClickException(f"Transcription failed: {str(e)}")
 
 
+@click.command("rerank", help='Rerank documents based on relevance to a query')
+@click.option('--api-key', required=True, help='The API key used for reranking.')
+@click.option('--model', required=True, help='The reranking model to use (e.g., jina-reranker-v2, cohere-rerank-v3)')
+@click.option('--query', required=True, help='The search query to compare documents against')
+@click.option('--documents', required=True, multiple=True,
+              help='Documents to rerank (can be specified multiple times)')
+@click.option('--documents-file', help='Path to JSON file containing documents array')
+@click.option('--top-n', type=int, help='Number of most relevant documents to return (returns all if not specified)')
+@click.option('--rank-fields', multiple=True,
+              help='For structured documents, specify which fields to rank by (can be specified multiple times)')
+@click.option('--no-return-documents', is_flag=True, default=False,
+              help='Do not return document content in results (only indices and scores)')
+@click.option('--max-chunks-per-doc', type=int, help='Maximum number of chunks per document')
+@click.option('--save-path', help='Path to save the reranking results as JSON (prints to console if not specified)')
+@click.option('--full-output', is_flag=True, help='Return full API response instead of just results')
+@click.option('--format', 'output_format', type=click.Choice(['json', 'table']),
+              default='table', help='Output format (defaults to table)')
+def rerank_documents(api_key: str, model: str, query: str, documents: tuple, documents_file: str,
+                     top_n: int, rank_fields: tuple, no_return_documents: bool,
+                     max_chunks_per_doc: int, save_path: str, full_output: bool, output_format: str):
+    """Rerank documents based on their relevance to a query"""
+
+    # Validate API key
+    KeysHandler.check_key(api_key)
+
+    # Prepare documents list
+    docs_list = []
+
+    if documents_file:
+        # Load documents from JSON file
+        try:
+            with open(documents_file, 'r', encoding='utf-8') as f:
+                docs_list = json.load(f)
+
+            if not isinstance(docs_list, list):
+                raise click.ClickException("Documents file must contain a JSON array")
+
+        except FileNotFoundError:
+            raise click.ClickException(f"Documents file not found: {documents_file}")
+        except json.JSONDecodeError as e:
+            raise click.ClickException(f"Invalid JSON in documents file: {e}")
+    else:
+        # Use documents from command line
+        if not documents:
+            raise click.ClickException("Either --documents or --documents-file must be specified")
+        docs_list = list(documents)
+
+    if not docs_list:
+        raise click.ClickException("No documents provided for reranking")
+
+    # Prepare optional parameters
+    kwargs: dict[str, Any] = {
+        'query': query,
+        'documents': docs_list,
+        'return_documents': not no_return_documents,
+        'full_output': full_output
+    }
+
+    if top_n is not None:
+        kwargs['top_n'] = top_n
+    if rank_fields:
+        kwargs['rank_fields'] = list(rank_fields)
+    if max_chunks_per_doc is not None:
+        kwargs['max_chunks_per_doc'] = max_chunks_per_doc
+
+    # Create client and rerank
+    client = RegoloClient(api_key=api_key)
+
+    try:
+        click.echo(f"Reranking {len(docs_list)} documents with query: '{query}'...")
+
+        response = client.static_rerank(
+            model=model,
+            api_key=api_key,
+            **kwargs
+        )
+
+        # Format output
+        if output_format == 'json':
+            output = json.dumps(response, indent=2, ensure_ascii=False)
+        else:
+            # Table format
+            if full_output and isinstance(response, dict):
+                results = response.get('results', [])
+                metadata = {k: v for k, v in response.items() if k != 'results'}
+
+                output_lines = []
+                if metadata:
+                    output_lines.append("Response Metadata:")
+                    output_lines.append(json.dumps(metadata, indent=2))
+                    output_lines.append("\n")
+            else:
+                results = response
+                output_lines = []
+
+            output_lines.append(f"\n📊 Reranking Results (Top {len(results)} documents):\n")
+
+            for i, result in enumerate(results, 1):
+                index = result.get('index', 'N/A')
+                score = result.get('relevance_score', 0.0)
+
+                # Format score as percentage
+                score_pct = f"{score * 100:.2f}%" if isinstance(score, (int, float)) else str(score)
+
+                output_lines.append(f"  {i}. Document #{index} - Relevance: {score_pct}")
+
+                if 'document' in result:
+                    doc = result['document']
+                    if isinstance(doc, dict):
+                        # Structured document
+                        output_lines.append(f"     Content: {json.dumps(doc, ensure_ascii=False)}")
+                    else:
+                        # String document - truncate if too long
+                        doc_str = str(doc)
+                        if len(doc_str) > 200:
+                            doc_str = doc_str[:197] + "..."
+                        output_lines.append(f"     Content: {doc_str}")
+
+                output_lines.append("")
+
+            output = "\n".join(output_lines)
+
+        # Save or print output
+        if save_path:
+            with open(save_path, 'w', encoding='utf-8') as f:
+                if output_format == 'json':
+                    f.write(output)
+                else:
+                    # Save as JSON even if displayed as table
+                    f.write(json.dumps(response, indent=2, ensure_ascii=False))
+            click.echo(f"✅ Reranking results saved to: {save_path}")
+        else:
+            click.echo(output)
+
+    except Exception as e:
+        raise click.ClickException(f"Reranking failed: {str(e)}")
+
+
 # Add all command groups to CLI
 cli.add_command(auth)
 cli.add_command(models)
@@ -1038,6 +1186,7 @@ cli.add_command(transcribe_audio)
 cli.add_command(chat)
 cli.add_command(create_image)
 cli.add_command(get_available_models)
+cli.add_command(rerank_documents)
 
 if __name__ == '__main__':
     cli()
