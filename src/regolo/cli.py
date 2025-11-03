@@ -1112,10 +1112,13 @@ def rerank_documents(api_key: str, model: str, query: str, documents: tuple, doc
     try:
         click.echo(f"Reranking {len(docs_list)} documents with query: '{query}'...")
 
-        response = client.rerank(
-            **kwargs
-        )
-
+        try:
+            response = client.rerank(
+                **kwargs
+            )
+        except Exception as e:
+            print(e)
+            raise click.ClickException(f"Reranking failed: {str(e)}")
         # Format output
         if output_format == 'json':
             output = json.dumps(response, indent=2, ensure_ascii=False)

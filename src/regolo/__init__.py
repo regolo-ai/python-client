@@ -13,7 +13,7 @@ default_audio_transcription_model = None
 default_reranker_model = None
 
 # if your server has a /models openai compatible endpoint, you can enable model availability checks
-enable_model_checks = False
+enable_model_checks = True
 
 # Importing the main client from the regolo.client module for interacting with the Regolo API.
 from regolo.client.regolo_client import RegoloClient
