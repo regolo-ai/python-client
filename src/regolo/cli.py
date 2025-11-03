@@ -1,5 +1,10 @@
 import json
 import os
+import sys
+
+parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, parent_dir)
+
 import pprint
 import re
 from datetime import datetime
@@ -810,7 +815,7 @@ def user_inference_status(month: Optional[str], time_range_start: Optional[str],
 @click.command("get-available-models", help="Gets available models")
 @click.option('--api-key', required=True, help='The API key used to query Regolo.')
 @click.option('--model-type', default="", required=False,
-              type=click.Choice(['', 'chat', 'image_generation', "embedding", "audio_transcription"]),
+              type=click.Choice(['', 'chat', 'image_generation', "embedding", "audio_transcription", "rerank"]),
               help='The type of the models you want to retrieve (returns all by default)')
 def get_available_models(api_key: str, model_type: str):
     available_models: list[dict] = regolo.RegoloClient.get_available_models(api_key, model_info=True)
@@ -1102,14 +1107,12 @@ def rerank_documents(api_key: str, model: str, query: str, documents: tuple, doc
         kwargs['max_chunks_per_doc'] = max_chunks_per_doc
 
     # Create client and rerank
-    client = RegoloClient(api_key=api_key)
+    client = RegoloClient(api_key=api_key, reranker_model=model)
 
     try:
         click.echo(f"Reranking {len(docs_list)} documents with query: '{query}'...")
 
-        response = client.static_rerank(
-            model=model,
-            api_key=api_key,
+        response = client.rerank(
             **kwargs
         )
 
