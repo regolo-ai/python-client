@@ -331,7 +331,7 @@ The Regolo CLI provides a comprehensive interface for model management, inferenc
 Start an interactive chat session:
 
 ```bash
-regolo-cli chat
+regolo chat
 ```
 
 **Options:**
@@ -341,7 +341,7 @@ regolo-cli chat
 
 **Example:**
 ```bash
-regolo-cli chat --api-key <YOUR_API_KEY> --disable-newlines
+regolo chat --api-key <YOUR_API_KEY> --disable-newlines
 ```
 
 ### **Model Management**
@@ -351,14 +351,14 @@ regolo-cli chat --api-key <YOUR_API_KEY> --disable-newlines
 Before using model management features, authenticate with your credentials:
 
 ```bash
-regolo-cli auth login
+regolo auth login
 ```
 
 You'll be prompted for your username and password. The CLI will save your authentication tokens automatically.
 
 **Logout:**
 ```bash
-regolo-cli auth logout
+regolo auth logout
 ```
 
 #### **List Available Models**
@@ -366,12 +366,12 @@ regolo-cli auth logout
 Get models accessible with your API key:
 
 ```bash
-regolo-cli get-available-models --api-key <YOUR_API_KEY>
+regolo get-available-models --api-key <YOUR_API_KEY>
 ```
 
 Filter by model type:
 ```bash
-regolo-cli get-available-models --api-key <YOUR_API_KEY> --model-type chat
+regolo get-available-models --api-key <YOUR_API_KEY> --model-type chat
 # Options: chat, image_generation, embedding, audio_transcription, rerank
 ```
 
@@ -379,7 +379,7 @@ regolo-cli get-available-models --api-key <YOUR_API_KEY> --model-type chat
 
 **Register a HuggingFace model:**
 ```bash
-regolo-cli models register \
+regolo models register \
   --name my-llama-model \
   --type huggingface \
   --url meta-llama/Llama-2-7b-hf \
@@ -388,7 +388,7 @@ regolo-cli models register \
 
 **Register a custom model:**
 ```bash
-regolo-cli models register \
+regolo models register \
   --name my-custom-model \
   --type custom
 ```
@@ -398,24 +398,24 @@ This creates a GitLab repository at `git@gitlab.regolo.ai:<username>/my-custom-m
 #### **List Registered Models**
 
 ```bash
-regolo-cli models list
+regolo models list
 ```
 
 **JSON output:**
 ```bash
-regolo-cli models list --format json
+regolo models list --format json
 ```
 
 #### **Get Model Details**
 
 ```bash
-regolo-cli models details my-llama-model
+regolo models details my-llama-model
 ```
 
 #### **Delete a Model**
 
 ```bash
-regolo-cli models delete my-llama-model --confirm
+regolo models delete my-llama-model --confirm
 ```
 
 ### **Inference Management**
@@ -423,29 +423,29 @@ regolo-cli models delete my-llama-model --confirm
 #### **View Available GPUs**
 
 ```bash
-regolo-cli inference gpus
+regolo inference gpus
 ```
 
 **JSON output:**
 ```bash
-regolo-cli inference gpus --format json
+regolo inference gpus --format json
 ```
 
 #### **Load Model for Inference**
 
 **Interactive (will prompt for GPU selection):**
 ```bash
-regolo-cli inference load my-llama-model
+regolo inference load my-llama-model
 ```
 
 **With specific GPU:**
 ```bash
-regolo-cli inference load my-llama-model --gpu ECS1GPU11
+regolo inference load my-llama-model --gpu required-gpu
 ```
 
 **With vLLM configuration:**
 ```bash
-regolo-cli inference load my-llama-model \
+regolo inference load my-llama-model \
   --gpu ECS1GPU11 \
   --max-model-len 4096 \
   --gpu-memory-utilization 0.9 \
@@ -464,20 +464,20 @@ cat > vllm_config.json << EOF
 }
 EOF
 
-regolo-cli inference load my-llama-model \
+regolo inference load my-llama-model \
   --gpu ECS1GPU11 \
   --vllm-config-file vllm_config.json
 ```
 
 **Force overwrite existing configuration:**
 ```bash
-regolo-cli inference load my-llama-model --gpu ECS1GPU11 --force
+regolo inference load my-llama-model --gpu ECS1GPU11 --force
 ```
 
 #### **View Loaded Models**
 
 ```bash
-regolo-cli inference status
+regolo inference status
 ```
 
 This shows:
@@ -491,41 +491,41 @@ This shows:
 
 **Interactive (will show loaded models):**
 ```bash
-regolo-cli inference unload
+regolo inference unload
 ```
 
 **By session ID:**
 ```bash
-regolo-cli inference unload --session-id 12345
+regolo inference unload --session-id 12345
 ```
 
 **By model name:**
 ```bash
-regolo-cli inference unload --model-name my-llama-model
+regolo inference unload --model-name my-llama-model
 ```
 
 #### **Monitor Costs**
 
 **Current month:**
 ```bash
-regolo-cli inference user-status
+regolo inference user-status
 ```
 
 **Specific month (MMYYYY format):**
 ```bash
-regolo-cli inference user-status --month 012025
+regolo inference user-status --month 012025
 ```
 
 **Time range:**
 ```bash
-regolo-cli inference user-status \
+regolo inference user-status \
   --time-range-start 2025-01-01T00:00:00Z \
   --time-range-end 2025-01-15T23:59:59Z
 ```
 
 **JSON output:**
 ```bash
-regolo-cli inference user-status --format json
+regolo inference user-status --format json
 ```
 
 ### **SSH Key Management**
@@ -536,14 +536,14 @@ SSH keys are required to push custom model files to GitLab repositories.
 
 **From file:**
 ```bash
-regolo-cli ssh add \
+regolo ssh add \
   --title "My Development Key" \
   --key-file ~/.ssh/id_rsa.pub
 ```
 
 **Direct key content:**
 ```bash
-regolo-cli ssh add \
+regolo ssh add \
   --title "My Development Key" \
   --key "ssh-rsa AAAAB3NzaC1yc2E... user@example.com"
 ```
@@ -551,18 +551,18 @@ regolo-cli ssh add \
 #### **List SSH Keys**
 
 ```bash
-regolo-cli ssh list
+regolo ssh list
 ```
 
 **JSON output:**
 ```bash
-regolo-cli ssh list --format json
+regolo ssh list --format json
 ```
 
 #### **Delete SSH Key**
 
 ```bash
-regolo-cli ssh delete <KEY_ID> --confirm
+regolo ssh delete <KEY_ID> --confirm
 ```
 
 ### **Complete Workflow Command**
@@ -570,7 +570,7 @@ regolo-cli ssh delete <KEY_ID> --confirm
 The workflow command automates the entire model deployment process:
 
 ```bash
-regolo-cli workflow workflow my-custom-model \
+regolo workflow workflow my-custom-model \
   --type custom \
   --ssh-key-file ~/.ssh/id_rsa.pub \
   --ssh-key-title "Dev Key" \
@@ -586,7 +586,7 @@ This will:
 
 **For HuggingFace models:**
 ```bash
-regolo-cli workflow workflow my-gpt2 \
+regolo workflow workflow my-gpt2 \
   --type huggingface \
   --url gpt2 \
   --auto-load
@@ -597,7 +597,7 @@ regolo-cli workflow workflow my-gpt2 \
 #### **Create Images**
 
 ```bash
-regolo-cli create-image \
+regolo create-image \
   --api-key <YOUR_API_KEY> \
   --model Qwen-Image \
   --prompt "A beautiful sunset" \
@@ -612,7 +612,7 @@ regolo-cli create-image \
 #### **Transcribe Audio**
 
 ```bash
-regolo-cli transcribe-audio \
+regolo transcribe-audio \
   --api-key <YOUR_API_KEY> \
   --model faster-whisper-large-v3 \
   --file-path audio.mp3 \
@@ -623,7 +623,7 @@ regolo-cli transcribe-audio \
 
 **Streaming transcription:**
 ```bash
-regolo-cli transcribe-audio \
+regolo transcribe-audio \
   --api-key <YOUR_API_KEY> \
   --model faster-whisper-large-v3 \
   --file-path audio.mp3 \
@@ -633,7 +633,7 @@ regolo-cli transcribe-audio \
 #### **Rerank Documents**
 
 ```bash
-regolo-cli rerank \
+regolo rerank \
   --api-key <YOUR_API_KEY> \
   --model jina-reranker-v2 \
   --query "capital of France" \
@@ -654,7 +654,7 @@ cat > documents.json << EOF
 ]
 EOF
 
-regolo-cli rerank \
+regolo rerank \
   --api-key <YOUR_API_KEY> \
   --model jina-reranker-v2 \
   --query "capital of France" \
@@ -674,7 +674,7 @@ deploy, and monitor both HuggingFace and custom models on GPU infrastructure.
 Before using model management features, authenticate using the CLI:
 
 ```bash
-regolo-cli auth login
+regolo auth login
 ```
 
 Or in Python:
@@ -698,7 +698,7 @@ refresh_token = auth_response['refresh_token']
 Register a model from HuggingFace Hub:
 
 ```bash
-regolo-cli models register \
+regolo models register \
   --name my-bert-model \
   --type huggingface \
   --url bert-base-uncased
@@ -707,7 +707,7 @@ regolo-cli models register \
 For private models, include your HuggingFace token:
 
 ```bash
-regolo-cli models register \
+regolo models register \
   --name my-private-model \
   --type huggingface \
   --url organization/private-model \
@@ -725,12 +725,12 @@ For custom models, the platform creates a GitLab repository where you can push y
 
 ```bash
 # 1. Register the model
-regolo-cli models register \
+regolo models register \
   --name my-custom-model \
   --type custom
 
 # 2. Add SSH key for repository access
-regolo-cli ssh add \
+regolo ssh add \
   --title "Development Key" \
   --key-file ~/.ssh/id_rsa.pub
 
@@ -802,10 +802,10 @@ Once registered, load models onto GPU infrastructure for inference:
 
 ```bash
 # View available GPUs
-regolo-cli inference gpus
+regolo inference gpus
 
 # Load model with specific configuration
-regolo-cli inference load my-bert-model \
+regolo inference load my-bert-model \
   --gpu ECS1GPU11 \
   --max-model-len 2048 \
   --gpu-memory-utilization 0.9 \
@@ -853,7 +853,7 @@ result = client.load_model_for_inference(
 #### **View Loaded Models**
 
 ```bash
-regolo-cli inference status
+regolo inference status
 ```
 
 Output includes:
@@ -867,13 +867,13 @@ Output includes:
 
 ```bash
 # Current month
-regolo-cli inference user-status
+regolo inference user-status
 
 # Specific month (MMYYYY format)
-regolo-cli inference user-status --month 012025
+regolo inference user-status --month 012025
 
 # Custom time range
-regolo-cli inference user-status \
+regolo inference user-status \
   --time-range-start 2025-01-01T00:00:00Z \
   --time-range-end 2025-01-15T23:59:59Z
 ```
@@ -912,13 +912,13 @@ Stop billing by unloading models when not in use:
 
 ```bash
 # Interactive (shows loaded models)
-regolo-cli inference unload
+regolo inference unload
 
 # By session ID
-regolo-cli inference unload --session-id 12345
+regolo inference unload --session-id 12345
 
 # By model name
-regolo-cli inference unload --model-name my-bert-model
+regolo inference unload --model-name my-bert-model
 ```
 
 **In Python:**
@@ -942,37 +942,37 @@ for model in loaded['loaded_models']:
 
 ```bash
 # 1. Authenticate
-regolo-cli auth login
+regolo auth login
 
 # 2. Register HuggingFace model
-regolo-cli models register \
+regolo models register \
   --name llama-2-7b \
   --type huggingface \
   --url meta-llama/Llama-2-7b-hf
 
 # 3. View available GPUs
-regolo-cli inference gpus
+regolo inference gpus
 
 # 4. Load model for inference
-regolo-cli inference load llama-2-7b \
+regolo inference load llama-2-7b \
   --gpu ECS1GPU11 \
   --max-model-len 4096 \
   --gpu-memory-utilization 0.9
 
 # 5. Monitor status (wait for loading to complete)
-regolo-cli inference status
+regolo inference status
 
 # 6. Use the model via API
 # (Model is now available through Regolo inference endpoints)
 
 # 7. Check costs
-regolo-cli inference user-status
+regolo inference user-status
 
 # 8. Unload when done
-regolo-cli inference unload --model-name llama-2-7b
+regolo inference unload --model-name llama-2-7b
 
 # 9. Logout
-regolo-cli auth logout
+regolo auth logout
 ```
 
 **Python equivalent:**
@@ -1569,24 +1569,6 @@ client.clear_conversations()  # Clear before new topic
 client.run_chat(user_prompt="Tell me about JavaScript")
 ```
 
-### **Cost Optimization**
-
-When using model management features:
-
-1. **Unload models when not in use** - billing is hourly
-2. **Monitor costs regularly** with `regolo-cli inference user-status`
-3. **Choose appropriate GPU sizes** - don't over-provision
-4. **Use `gpu_memory_utilization` wisely** - optimize for your workload
-5. **Batch inference requests** - minimize load/unload cycles
-
-```bash
-# Check costs daily
-0 9 * * * regolo-cli inference user-status --format json >> daily_costs.log
-
-# Alert if models running too long
-0 */4 * * * regolo-cli inference status | grep "hours" | mail -s "Regolo Status" admin@example.com
-```
-
 ### **Model Naming Conventions**
 
 - Use descriptive, lowercase names: `my-bert-model`
@@ -1618,7 +1600,7 @@ client = regolo.RegoloClient(api_key="<YOUR_API_KEY>")
 ```bash
 # Problem: Model not found when loading for inference
 # Solution: Register the model first
-regolo-cli models register --name my-model --type huggingface --url gpt2
+regolo models register --name my-model --type huggingface --url gpt2
 ```
 
 #### **SSH Authentication Failed**
@@ -1626,7 +1608,7 @@ regolo-cli models register --name my-model --type huggingface --url gpt2
 ```bash
 # Problem: Cannot push to GitLab repository
 # Solution: Add your SSH key
-regolo-cli ssh add --title "My Key" --key-file ~/.ssh/id_rsa.pub
+regolo ssh add --title "My Key" --key-file ~/.ssh/id_rsa.pub
 
 # Test SSH connection
 ssh -T git@gitlab.regolo.ai
@@ -1637,11 +1619,11 @@ ssh -T git@gitlab.regolo.ai
 ```bash
 # Problem: Model takes too long to load
 # Solution: Large models need time, check status periodically
-regolo-cli inference status
+regolo inference status
 
 # Wait and check again
 sleep 60
-regolo-cli inference status
+regolo inference status
 ```
 
 #### **High Costs**
@@ -1649,11 +1631,11 @@ regolo-cli inference status
 ```bash
 # Problem: Unexpected high costs
 # Solution: Check loaded models and unload unused ones
-regolo-cli inference status
-regolo-cli inference unload --model-name unused-model
+regolo inference status
+regolo inference unload --model-name unused-model
 
 # Check detailed cost breakdown
-regolo-cli inference user-status --month 012025
+regolo inference user-status --month 012025
 ```
 
 ### **Getting Help**
@@ -1661,7 +1643,7 @@ regolo-cli inference user-status --month 012025
 For additional support:
 
 1. Check the [API documentation](https://devmid.regolo.ai/docs)
-2. View CLI help: `regolo-cli --help` or `regolo-cli <command> --help`
+2. View CLI help: `regolo --help` or `regolo <command> --help`
 3. Contact Regolo support through your organization
 
 ---
@@ -1695,27 +1677,27 @@ For additional support:
 
 ### **CLI Commands Reference**
 
-| Command                             | Description                   |
-|-------------------------------------|-------------------------------|
-| `regolo-cli auth login`             | Authenticate with credentials |
-| `regolo-cli auth logout`            | Clear authentication tokens   |
-| `regolo-cli models register`        | Register a new model          |
-| `regolo-cli models list`            | List registered models        |
-| `regolo-cli models details <name>`  | Get model details             |
-| `regolo-cli models delete <name>`   | Delete a model                |
-| `regolo-cli ssh add`                | Add SSH key                   |
-| `regolo-cli ssh list`               | List SSH keys                 |
-| `regolo-cli ssh delete <id>`        | Delete SSH key                |
-| `regolo-cli inference gpus`         | List available GPUs           |
-| `regolo-cli inference load <model>` | Load model for inference      |
-| `regolo-cli inference unload`       | Unload model                  |
-| `regolo-cli inference status`       | Show loaded models            |
-| `regolo-cli inference user-status`  | Show cost/billing info        |
-| `regolo-cli chat`                   | Interactive chat              |
-| `regolo-cli get-available-models`   | List API models               |
-| `regolo-cli create-image`           | Generate images               |
-| `regolo-cli transcribe-audio`       | Transcribe audio              |
-| `regolo-cli rerank`                 | Rerank documents              |
+| Command                         | Description                   |
+|---------------------------------|-------------------------------|
+| `regolo auth login`             | Authenticate with credentials |
+| `regolo auth logout`            | Clear authentication tokens   |
+| `regolo models register`        | Register a new model          |
+| `regolo models list`            | List registered models        |
+| `regolo models details <name>`  | Get model details             |
+| `regolo models delete <name>`   | Delete a model                |
+| `regolo ssh add`                | Add SSH key                   |
+| `regolo ssh list`               | List SSH keys                 |
+| `regolo ssh delete <id>`        | Delete SSH key                |
+| `regolo inference gpus`         | List available GPUs           |
+| `regolo inference load <model>` | Load model for inference      |
+| `regolo inference unload`       | Unload model                  |
+| `regolo inference status`       | Show loaded models            |
+| `regolo inference user-status`  | Show cost/billing info        |
+| `regolo chat`                   | Interactive chat              |
+| `regolo get-available-models`   | List API models               |
+| `regolo create-image`           | Generate images               |
+| `regolo transcribe-audio`       | Transcribe audio              |
+| `regolo rerank`                 | Rerank documents              |
 
 ---
 
