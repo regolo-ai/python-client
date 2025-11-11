@@ -1520,11 +1520,11 @@ def monitor_costs_continuously(threshold_eur=100, check_interval=3600):
 import os
 import regolo
 
-# ✓ Good: Load from environment
+# Load key from environment
 regolo.default_key = os.getenv("REGOLO_API_KEY")
 
-# ✗ Bad: Hardcoded key
-# regolo.default_key = "sk-xxxxxxxxxxxxx"
+# Hardcoded key
+regolo.default_key = "sk-xxxxxxxxxxxxx"
 ```
 
 ### **Error Handling**
