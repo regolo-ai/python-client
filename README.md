@@ -1729,26 +1729,5 @@ For additional support:
 
 ---
 
-## **License**
-
-Please refer to your Regolo.ai service agreement for licensing terms.
-
----
-
-## **Changelog**
-
-### **Latest Version**
-- Added comprehensive model management and deployment features
-- Integrated CLI for model registration and inference management
-- Added support for HuggingFace and custom GitLab models
-- Implemented SSH key management for repository access
-- Added GPU inference deployment with vLLM configuration
-- Added billing and cost tracking capabilities
-- Added document reranking support
-- Enhanced audio transcription with streaming
-- Improved error handling and documentation
-
----
-
 For more information,
 visit the [Regolo.ai documentation](https://docs.regolo.ai) or contact support through your organization.
