@@ -60,7 +60,7 @@ class ModelManagementClient:
     def _headers(self):
         """Get authentication headers"""
         if not self.token:
-            raise Exception("Not authenticated. Please run 'regolo-cli auth login' first.")
+            raise Exception("Not authenticated. Please run 'regolo auth login' first.")
         return {"Authorization": f"Bearer {self.token}"}
 
     def _make_request(self, method: str, endpoint: str, **kwargs):
