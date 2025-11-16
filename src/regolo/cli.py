@@ -227,7 +227,7 @@ def auth():
 
 
 @auth.command("login")
-@click.option('--username', prompt=True, hide_input=True, help='Username for authentication')
+@click.option('--username', prompt=True, help='Username for authentication')
 @click.option('--password', prompt=True, hide_input=True, help='Password for authentication')
 def login(username: str, password: str):
     """Login and save authentication tokens"""
@@ -392,7 +392,6 @@ def add_ssh_key(title: str, key_file: Optional[str], key: Optional[str]):
 
         result = model_client.add_ssh_key(title, key)
         click.echo(f"✅ SSH key '{title}' added successfully!")
-        click.echo(f"   ID: {result.get('id')}")
         if result.get('fingerprint'):
             click.echo(f"   Fingerprint: {result['fingerprint']}")
 
