@@ -132,13 +132,13 @@ class ModelManagementClient:
         return False
 
     # Model Management Methods
-    def register_model(self, name: str, is_huggingface: bool,
+    def register_model(self, name: str, provider: str,
                        url: Optional[str] = None, api_key: Optional[str] = None,
                        force: bool = False):
         """Register a new model"""
         data = {
             "name": name,
-            "is_huggingface": is_huggingface,
+            "provider": provider,
             "force": force
         }
         if url:
@@ -256,7 +256,7 @@ def models():
 
 @models.command("register")
 @click.option('--name', required=True, help='Name for the model')
-@click.option('--type', 'model_type', type=click.Choice(['huggingface', 'custom']),
+@click.option('--type', 'model_type', type=click.Choice(['huggingface', 'ollama', 'custom']),
               required=True, help='Type of model (huggingface or custom)')
 @click.option('--url', help='HuggingFace URL (required for huggingface models)')
 @click.option('--api-key', help='HuggingFace API key (optional, for private models)')
@@ -264,21 +264,20 @@ def register_model(name: str, model_type: str, url: Optional[str],
                    api_key: Optional[str]):
     """Register a new model in the system"""
     try:
-        is_huggingface = model_type == 'huggingface'
 
-        if is_huggingface and not url:
+        if model_type=="huggingface" and not url:
             click.echo("❌ URL is required for HuggingFace models")
             exit(1)
 
         model_client.register_model(
             name=name,
-            is_huggingface=is_huggingface,
+            provider=model_type,
             url=url,
             api_key=api_key
         )
 
         click.echo(f"✅ Model '{name}' registered successfully!")
-        if is_huggingface:
+        if model_type=="huggingface":
             click.echo("📥 HuggingFace model added to your regolo account! (remember to download it if you want to preserve it, since we do not store huggingface models locally)")
         else:
             click.echo("📂 Custom project created. You can now upload your model files using SSH")
@@ -678,15 +677,15 @@ def complete_workflow(model_name: str, model_type: str, url: Optional[str],
 
         # Step 1: Register model
         click.echo("\n📝 Step 1: Registering model...")
-        is_huggingface = model_type == 'huggingface'
+        not_ssh = model_type == 'huggingface' or 'ollama'
 
-        if is_huggingface and not url:
+        if not_ssh and not url:
             click.echo("❌ URL is required for HuggingFace models")
             exit(1)
 
         model_client.register_model(
             name=model_name,
-            is_huggingface=is_huggingface,
+            provider=model_type,
             url=url,
             api_key=api_key
         )
