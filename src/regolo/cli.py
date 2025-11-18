@@ -305,7 +305,7 @@ def list_models(output_format: str):
         else:
             click.echo(f"\n📋 Found {result.get('total', 0)} models:\n")
             for model in models_list:
-                model_type = "🤗 HuggingFace" if model['is_huggingFace'] else "custom"
+                model_type = model['provider']
                 click.echo(f"  • {model['name']} ({model_type})")
                 if model.get('url'):
                     click.echo(f"    URL: {model['url']}")
@@ -329,7 +329,7 @@ def model_details(model_name: str, output_format: str):
         if output_format == 'json':
             click.echo(json.dumps(model, indent=2))
         else:
-            model_type = "🤗 HuggingFace" if model['is_huggingFace'] else "custom"
+            model_type = model['provider']
             click.echo(f"\n📋 Model Details: {model['name']}")
             click.echo(f"  Type: {model_type}")
             click.echo(f"  Email: {model['email']}")
