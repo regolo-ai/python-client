@@ -460,9 +460,12 @@ def inference():
 def list_gpus(output_format: str):
     """List available GPUs"""
     try:
+        import time
+        start = time.perf_counter()
         result = model_client.get_available_gpus()
         gpus = result.get('gpus', [])
-
+        end = time.perf_counter()
+        print(f"Execution time: {end - start:.6f} seconds")
         if output_format == 'json':
             click.echo(json.dumps(result, indent=2))
         else:
@@ -512,115 +515,6 @@ def build_vllm_config_from_options(**kwargs) -> dict:
             config[config_key] = value
 
     return config
-
-
-@inference.command("load")
-@click.argument('model_name')
-@click.option('--gpu', help='GPU identifier (will show available GPUs if not specified)')
-@click.option('--force', is_flag=True, help='Force loading even if model already loaded')
-@click.option('--vllm-config-file', help='Path to JSON file containing vLLM configuration')
-@click.option('--max-model-len', type=int, help='Maximum sequence length for the model')
-@click.option('--max-num-batched-tokens', type=int, help='Maximum number of batched tokens')
-@click.option('--gpu-memory-utilization', type=float, help='GPU memory utilization ratio (0.0-1.0)')
-@click.option('--tensor-parallel-size', type=int, help='Number of GPUs to use for tensor parallelism')
-@click.option('--disable-log-requests', is_flag=True, help='Disable logging of requests')
-@click.option('--enable-auto-tool-choice', is_flag=True, help='Enable automatic tool choice')
-@click.option('--tool-call-parser', help='Tool call parser to use (e.g., llama3_json)')
-@click.option('--chat-template', help='Path to chat template file')
-def load_model(model_name: str, gpu: Optional[str], force: bool, vllm_config_file: Optional[str], **vllm_options):
-    """Load model for inference with optional vLLM configuration"""
-    try:
-
-        if vllm_config_file:
-            # Load from file
-            vllm_config = parse_vllm_config_file(vllm_config_file)
-            click.echo(f"Loaded vLLM config from: {vllm_config_file}")
-        else:
-            # Build from command line options
-            vllm_config = build_vllm_config_from_options(**vllm_options)
-            if vllm_config:
-                click.echo("Using vLLM config from command line options")
-
-        # Show vLLM config if present
-        if vllm_config:
-            click.echo("vLLM Configuration:")
-            for key, value in vllm_config.items():
-                click.echo(f"  {key}: {value}")
-            click.echo()
-
-        # If no GPU specified, show available GPUs
-        if not gpu:
-            # For now, we'll use predefined GPU types since the API structure isn't clear
-            gpus_result = model_client.get_available_gpus()
-            gpus = gpus_result.get('gpus', [])
-            available_gpu_types = [gpu.get('InstanceType') for gpu in gpus]
-
-            click.echo("Available GPU types:")
-            for i, gpu_type in enumerate(available_gpu_types):
-                click.echo(f"  {i}: {gpu_type}")
-
-            gpu_choice = click.prompt("Select GPU number", type=int)
-            if gpu_choice < 0 or gpu_choice >= len(available_gpu_types):
-                click.echo("Invalid GPU selection")
-                exit(1)
-
-            gpu = available_gpu_types[gpu_choice]
-
-        result = model_client.load_model_for_inference(model_name, gpu, force, vllm_config)
-        click.echo(f"Model '{model_name}' loading initiated on {gpu}!")
-
-        if result.get('estimated_time'):
-            click.echo(f"Estimated loading time: {result['estimated_time']} seconds")
-
-    except Exception as e:
-        click.echo(f"Failed to load model: {e}")
-        exit(1)
-
-
-@inference.command("unload")
-@click.option('--session-id', type=int, help='Session ID to unload (will show loaded models if not specified)')
-@click.option('--model-name', help='Unload by model name (alternative to session-id)')
-def unload_model(session_id: Optional[int], model_name: Optional[str]):
-    """Unload model from inference"""
-    try:
-        # If no session ID specified, show loaded models
-        if not session_id and not model_name:
-            loaded_result = model_client.get_loaded_models()
-            loaded_models = loaded_result.get('loaded_models', [])
-
-            if not loaded_models:
-                click.echo("No models currently loaded")
-                return
-
-            click.echo("Currently loaded models:")
-            for model in loaded_models:
-                click.echo(f"  Session {model.get('session_id')}: {model.get('model_name')} on {model.get('gpu_id')}")
-
-            session_choice = click.prompt("Enter session ID to unload", type=int)
-            session_id = session_choice
-        elif model_name and not session_id:
-            # Find session ID by model name
-            loaded_result = model_client.get_loaded_models()
-            loaded_models = loaded_result.get('loaded_models', [])
-
-            matching_sessions = [m for m in loaded_models if m.get('model_name') == model_name]
-            if not matching_sessions:
-                click.echo(f"❌ Model '{model_name}' is not currently loaded")
-                exit(1)
-            elif len(matching_sessions) > 1:
-                click.echo(f"Multiple sessions found for '{model_name}':")
-                for model in matching_sessions:
-                    click.echo(f"  Session {model.get('session_id')}: on {model.get('gpu_id')}")
-                session_id = click.prompt("Enter session ID to unload", type=int)
-            else:
-                session_id = matching_sessions[0].get('session_id')
-
-        model_client.unload_model_from_inference(session_id)
-        click.echo(f"✅ Model unloaded successfully! (Session {session_id})")
-
-    except Exception as e:
-        click.echo(f"❌ Failed to unload model: {e}")
-        exit(1)
 
 
 @inference.command("status")

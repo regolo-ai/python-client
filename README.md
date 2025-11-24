@@ -433,76 +433,7 @@ regolo inference gpus --format json
 
 #### **Load Model for Inference**
 
-**Interactive (will prompt for GPU selection):**
-```bash
-regolo inference load my-llama-model
-```
-
-**With specific GPU:**
-```bash
-regolo inference load my-llama-model --gpu required-gpu
-```
-
-**With vLLM configuration:**
-```bash
-regolo inference load my-llama-model \
-  --gpu ECS1GPU11 \
-  --max-model-len 4096 \
-  --gpu-memory-utilization 0.9 \
-  --tensor-parallel-size 1
-```
-
-**Using vLLM config file:**
-```bash
-# Create vllm_config.json
-cat > vllm_config.json << EOF
-{
-  "max_model_len": 4096,
-  "gpu_memory_utilization": 0.9,
-  "tensor_parallel_size": 1,
-  "disable_log_requests": true
-}
-EOF
-
-regolo inference load my-llama-model \
-  --gpu ECS1GPU11 \
-  --vllm-config-file vllm_config.json
-```
-
-**Force overwrite existing configuration:**
-```bash
-regolo inference load my-llama-model --gpu ECS1GPU11 --force
-```
-
-#### **View Loaded Models**
-
-```bash
-regolo inference status
-```
-
-This shows:
-- Session IDs
-- Model names
-- GPU assignments
-- Load times
-- Current costs
-
-#### **Unload Model**
-
-**Interactive (will show loaded models):**
-```bash
-regolo inference unload
-```
-
-**By session ID:**
-```bash
-regolo inference unload --session-id 12345
-```
-
-**By model name:**
-```bash
-regolo inference unload --model-name my-llama-model
-```
+To load and unload models, please refer to our dashboard on regolo.ai!
 
 #### **Monitor Costs**
 
@@ -796,32 +727,6 @@ ssh_result = client.add_ssh_key(
 )
 ```
 
-### **Loading Models for Inference**
-
-Once registered, load models onto GPU infrastructure for inference:
-
-```bash
-# View available GPUs
-regolo inference gpus
-
-# Load model with specific configuration
-regolo inference load my-bert-model \
-  --gpu ECS1GPU11 \
-  --max-model-len 2048 \
-  --gpu-memory-utilization 0.9 \
-  --tensor-parallel-size 1
-```
-
-**vLLM Configuration Options:**
-
-- `--max-model-len`: Maximum sequence length
-- `--gpu-memory-utilization`: GPU memory fraction (0.0-1.0)
-- `--tensor-parallel-size`: Number of GPUs for tensor parallelism
-- `--disable-log-requests`: Disable request logging
-- `--enable-auto-tool-choice`: Enable automatic tool choice
-- `--tool-call-parser`: Tool call parser (e.g., llama3_json)
-- `--chat-template`: Path to chat template file
-
 **In Python:**
 
 ```python
@@ -906,37 +811,6 @@ for inference in status['inferences']:
           f"€{inference['cost_euro']:.2f}")
 ```
 
-#### **Unload Models**
-
-Stop billing by unloading models when not in use:
-
-```bash
-# Interactive (shows loaded models)
-regolo inference unload
-
-# By session ID
-regolo inference unload --session-id 12345
-
-# By model name
-regolo inference unload --model-name my-bert-model
-```
-
-**In Python:**
-
-```python
-# Get loaded models
-loaded = client.get_loaded_models()
-
-# Unload specific model
-for model in loaded['loaded_models']:
-    if model['model_name'] == 'my-bert-model':
-        client.unload_model_from_inference(model['session_id'])
-        break
-
-# Unload all models
-for model in loaded['loaded_models']:
-    client.unload_model_from_inference(model['session_id'])
-```
 
 ### **Complete Workflow Example**
 
@@ -954,10 +828,6 @@ regolo models register \
 regolo inference gpus
 
 # 4. Load model for inference
-regolo inference load llama-2-7b \
-  --gpu ECS1GPU11 \
-  --max-model-len 4096 \
-  --gpu-memory-utilization 0.9
 
 # 5. Monitor status (wait for loading to complete)
 regolo inference status
@@ -969,7 +839,6 @@ regolo inference status
 regolo inference user-status
 
 # 8. Unload when done
-regolo inference unload --model-name llama-2-7b
 
 # 9. Logout
 regolo auth logout
@@ -1001,11 +870,7 @@ vllm_config = {
     "gpu_memory_utilization": 0.9
 }
 
-client.load_model_for_inference(
-    model_name="llama-2-7b",
-    gpu=gpu,
-    vllm_config=vllm_config
-)
+# load for inference
 
 # Wait for model to load
 print("Waiting for model to load...")
@@ -1022,9 +887,6 @@ status = client.get_user_inference_status()
 print(f"Current cost: €{status.get('total_cost', 0):.2f}")
 
 # Unload when done
-for model in loaded['loaded_models']:
-    if model['model_name'] == 'llama-2-7b':
-        client.unload_model_from_inference(model['session_id'])
 ```
 
 ---
@@ -1626,18 +1488,6 @@ sleep 60
 regolo inference status
 ```
 
-#### **High Costs**
-
-```bash
-# Problem: Unexpected high costs
-# Solution: Check loaded models and unload unused ones
-regolo inference status
-regolo inference unload --model-name unused-model
-
-# Check detailed cost breakdown
-regolo inference user-status --month 012025
-```
-
 ### **Getting Help**
 
 For additional support:
@@ -1689,8 +1539,6 @@ For additional support:
 | `regolo ssh list`               | List SSH keys                 |
 | `regolo ssh delete <id>`        | Delete SSH key                |
 | `regolo inference gpus`         | List available GPUs           |
-| `regolo inference load <model>` | Load model for inference      |
-| `regolo inference unload`       | Unload model                  |
 | `regolo inference status`       | Show loaded models            |
 | `regolo inference user-status`  | Show cost/billing info        |
 | `regolo chat`                   | Interactive chat              |
