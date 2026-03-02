@@ -4,42 +4,42 @@
 #
 #    pip-compile pyproject.toml
 #
-annotated-types==0.7.0
+annotated-types
     # via pydantic
-anyio==4.8.0
+anyio
     # via httpx
-certifi==2025.1.31
+certifi
     # via
     #   httpcore
     #   httpx
-h11==0.14.0
+h11
     # via httpcore
-httpcore==1.0.7
+httpcore
     # via httpx
-httpx==0.28.1
+httpx
     # via regolo_client (pyproject.toml)
-idna==3.10
+idna
     # via
     #   anyio
     #   httpx
-json-repair==0.35.0
+json-repair
     # via regolo_client (pyproject.toml)
-pydantic==2.10.6
+pydantic
     # via regolo_client (pyproject.toml)
-pydantic-core==2.27.2
+pydantic-core
     # via pydantic
-sniffio==1.3.1
+sniffio
     # via anyio
-typing-extensions==4.12.2
+typing-extensions
     # via
     #   anyio
     #   pydantic
     #   pydantic-core
 
-json_repair~=0.35.0
-click==8.1.8
-pytest~=8.3.4
+json_repair
+click
+pytest
 
 python-dotenv
-pillow~=11.1.0
+pillow
 requests

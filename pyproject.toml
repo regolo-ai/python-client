@@ -22,11 +22,11 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
 ]
 dependencies = [
-  "click==8.1.8",
-  "httpx~=0.28.1",
-  "json-repair~=0.35.0",
-  "pillow~=11.1.0",
-  "pydantic~=2.10.6",
+  "click",
+  "httpx",
+  "json-repair",
+  "pillow",
+  "pydantic",
   "python-dotenv",
   "requests",
 ]
