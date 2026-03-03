@@ -227,7 +227,7 @@ class RegoloClient:
                 try:
                     # Repair and parse the JSON chunk
                     data_chunk = json.loads(json_repair.repair_json(decoded_line))
-                except (Exception,):
+                except Exception:
                     continue
 
                 if full_output:
@@ -419,22 +419,31 @@ class RegoloClient:
         :return for stream=False, full_output=True: Tuple, which consists of role and content of response.
         """
 
+        _state = {"in_reasoning": False}
+
         def handle_search_text_chat_completions(data: dict) -> Optional[tuple[Role, Content]]:
             """
             Internal method, describes how RegoloClient.create_stream_generator() should handle
-            output from chat_completions.
+            output from chat_completions. Reasoning tokens are rendered separately in the CLI (dim + "Thinking..." header).
             """
+            def resolve(delta: dict) -> tuple[Role, Content]:
+                content = delta.get("content")
+                reasoning = delta.get("reasoning_content")
+                if content:
+                    _state["in_reasoning"] = False
+                    return "", content
+                elif reasoning:
+                    _state["in_reasoning"] = True
+                    return "thinking", reasoning
+                return "", ""
+
             if isinstance(data, dict):
                 delta = data.get("choices", [{}])[0].get("delta", {})
-                out_role: Role = delta.get("role", "")
-                out_content: Content = delta.get("content", "")
-                return out_role, out_content
+                return resolve(delta)
             elif isinstance(data, list):
                 for element in data:
                     delta = element.get("choices", [{}])[0].get("delta", {})
-                    out_role: Role = delta.get("role", "")
-                    out_content: Content = delta.get("content", "")
-                    return out_role, out_content
+                    return resolve(delta)
             return None
 
         # Use the default API key if not provided

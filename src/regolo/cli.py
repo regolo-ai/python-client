@@ -829,7 +829,8 @@ def get_available_models(api_key: str, model_type: str):
 @click.option('--api-key', required=False, help='The API key used to chat with Regolo.')
 @click.option('--disable-newlines', required=False, is_flag=True, default=False,
               help='Disable new lines, they will be replaced with space character')
-def chat(no_hide: bool, api_key: str, disable_newlines: bool):
+@click.option('--max-tokens', default=2048, help='Max tokens per response (default: 2048)')
+def chat(no_hide: bool, api_key: str, disable_newlines: bool, max_tokens: int):
     if not api_key:
         api_key = click.prompt("Insert your regolo API key", hide_input=not no_hide)
     available_models: list[dict] = regolo.RegoloClient.get_available_models(api_key, model_info=True)
@@ -873,17 +874,29 @@ def chat(no_hide: bool, api_key: str, disable_newlines: bool):
         if user_input == "/bye":
             exit(0)
         # get chat response and save in the client
-        response = client.run_chat(user_input, stream=True, full_output=False)
+        response = client.run_chat(user_input, stream=True, full_output=False, max_tokens=max_tokens)
 
         # print output
+        was_thinking = False
         while True:
             try:
                 res = next(response)
-                if res[0]:
-                    click.echo(res[0] + ":")
+                if res is None:
+                    continue
+                is_thinking = res[0] == "thinking"
+                text = res[1]
+                if is_thinking and not was_thinking:
+                    click.echo(click.style("Thinking...", dim=True, italic=True))
+                    was_thinking = True
+                elif not is_thinking and was_thinking and text:
+                    click.echo(click.style("\n─────────────────────\n", dim=True))
+                    was_thinking = False
                 if disable_newlines:
-                    res[1] = res[1].replace("\n", " ")
-                click.echo(res[1], nl=False)
+                    text = text.replace("\n", " ")
+                if is_thinking:
+                    click.echo(click.style(text, dim=True), nl=False)
+                else:
+                    click.echo(text, nl=False)
             except StopIteration:
                 break
 
