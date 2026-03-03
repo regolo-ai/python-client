@@ -337,7 +337,8 @@ regolo chat
 **Options:**
 - `--no-hide`: Display API key while typing
 - `--disable-newlines`: Replace newlines with spaces in responses
-- `--api-key <key>`: Provide API key directly instead of being prompted
+- `--api-key <key>`: Provide an API key directly instead of being prompted
+- `--max-tokens`: Specify max tokens for the response
 
 **Example:**
 ```bash
