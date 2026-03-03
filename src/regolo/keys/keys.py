@@ -18,7 +18,7 @@ class KeysHandler:
         """
         Validates and formats the API key.
 
-        :param api_key: The API key to be validated.
+        :param api_key: The API key that has to be validated.
 
         :return: A properly formatted API key.
         :raises RuntimeError: If the API key is None.

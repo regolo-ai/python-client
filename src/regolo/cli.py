@@ -37,7 +37,7 @@ class ModelManagementClient:
         self._load_config()
 
     def _load_config(self):
-        """Load authentication tokens from config file"""
+        """Load authentication tokens from the config file"""
         if os.path.exists(CONFIG_FILE):
             try:
                 with open(CONFIG_FILE, 'r') as f:
@@ -48,7 +48,7 @@ class ModelManagementClient:
                 click.echo(f"Failed to load config: {e}")
 
     def _save_config(self):
-        """Save authentication tokens to config file"""
+        """Save authentication tokens to the config file"""
         config = {
             'access_token': self.token,
             'refresh_token': self.refresh_token
@@ -64,7 +64,7 @@ class ModelManagementClient:
         return {"Authorization": f"Bearer {self.token}"}
 
     def _make_request(self, method: str, endpoint: str, **kwargs):
-        """Make authenticated API request with token refresh handling"""
+        """Make an authenticated API request with token refresh handling"""
         url = f"{self.base_url}{endpoint}"
         response = None
         try:
@@ -73,7 +73,7 @@ class ModelManagementClient:
             # If the token expired, try to refresh
             if response.status_code == 401 and self.refresh_token:
                 if self._refresh_token():
-                    # Retry with new token
+                    # Retry with a new token
                     response = httpx.request(method, url, headers=self._headers(), timeout=self.timeout, **kwargs)
                 else:
                     raise Exception("Authentication failed. Please login again.")
@@ -162,7 +162,7 @@ class ModelManagementClient:
 
     # SSH Key Management Methods
     def add_ssh_key(self, title: str, key: str):
-        """Add SSH key"""
+        """Add an SSH key"""
         return self._make_request("POST", "/ssh-keys", json={"title": title, "key": key})
 
     def get_ssh_keys(self):
@@ -373,7 +373,7 @@ def ssh():
 @click.option('--key-file', help='Path to SSH public key file')
 @click.option('--key', help='SSH public key content (if not using --key-file)')
 def add_ssh_key(title: str, key_file: Optional[str], key: Optional[str]):
-    """Add SSH key"""
+    """Add an SSH key"""
     try:
         if key_file and key:
             click.echo("❌ Please specify either --key-file or --key, not both")
@@ -532,7 +532,7 @@ def load_model(model_name: str, gpu: Optional[str], force: bool, vllm_config_fil
     try:
 
         if vllm_config_file:
-            # Load from file
+            # Load from a file
             vllm_config = parse_vllm_config_file(vllm_config_file)
             click.echo(f"Loaded vLLM config from: {vllm_config_file}")
         else:
@@ -670,7 +670,7 @@ def workflow():
 def complete_workflow(model_name: str, model_type: str, url: Optional[str],
                       api_key: Optional[str], ssh_key_file: Optional[str], ssh_key_title: Optional[str],
                       local_model_path: Optional[str], auto_load: bool):
-    """Complete workflow: register model, upload (if custom), and optionally load for inference"""
+    """Complete workflow: register a model, upload (if custom), and optionally load for inference"""
 
     try:
         click.echo(f"🚀 Starting complete workflow for '{model_name}'...")
@@ -695,7 +695,7 @@ def complete_workflow(model_name: str, model_type: str, url: Optional[str],
         if model_type == 'custom':
             click.echo("\n🔑 Step 2: Setting up SSH access...")
 
-            # Add SSH key if provided
+            # Add an SSH key if provided
             if ssh_key_file and ssh_key_title:
                 if os.path.exists(ssh_key_file):
                     with open(ssh_key_file, 'r') as f:
@@ -713,7 +713,7 @@ def complete_workflow(model_name: str, model_type: str, url: Optional[str],
                     click.echo(f"❌ SSH key file not found: {ssh_key_file}")
                     exit(1)
 
-            # If local model path provided, show git instructions
+            # If a local model path provided, show git instructions
             if local_model_path:
                 click.echo(f"\n📂 Step 3: Upload model files...")
                 click.echo("To upload your model files, run the following commands:")
@@ -744,7 +744,7 @@ def complete_workflow(model_name: str, model_type: str, url: Optional[str],
                 click.echo("❌ No GPUs available for inference")
                 return
 
-            # Use the first available GPU or let user choose
+            # Use the first available GPU or let the user choose
             if len(gpus) == 1:
                 gpu = gpus[0].get('InstanceType', 'GPU-0')
                 click.echo(f"Using GPU: {gpu}")
@@ -785,7 +785,7 @@ def complete_workflow(model_name: str, model_type: str, url: Optional[str],
 def user_inference_status(month: Optional[str], time_range_start: Optional[str], time_range_end: Optional[str], output_format: str):
     """Get inference status for your models"""
     try:
-        # Validate month format if provided
+        # Validate a month format if provided
         if month and not re.match(r'^(0[1-9]|1[0-2])\d{4}$', month):
             click.echo("❌ Invalid month format. Use MMYYYY format (e.g., 012025)")
             exit(1)
@@ -949,7 +949,7 @@ def create_image(api_key: str, save_path: str, model: str, prompt: str, n: int, 
             filepath = os.path.join(save_path, filename)
             i += 1
 
-        # Save with appropriate format
+        # Save with the appropriate format
         if ext == 'jpeg':
             image.save(filepath, 'JPEG')
         else:
@@ -1003,7 +1003,7 @@ def transcribe_audio(api_key: str, model: str, file_path: str, save_path: str, l
     if timestamp_granularities:
         kwargs['timestamp_granularities'] = list(timestamp_granularities)
 
-    # Create client and transcribe
+    # Create a client and transcribe
     client = RegoloClient(api_key=api_key)
 
     try:
@@ -1094,7 +1094,7 @@ def rerank_documents(api_key: str, model: str, query: str, documents: tuple, doc
         except json.JSONDecodeError as e:
             raise click.ClickException(f"Invalid JSON in documents file: {e}")
     else:
-        # Use documents from command line
+        # Use documents from the command line
         if not documents:
             raise click.ClickException("Either --documents or --documents-file must be specified")
         docs_list = list(documents)
@@ -1117,7 +1117,7 @@ def rerank_documents(api_key: str, model: str, query: str, documents: tuple, doc
     if max_chunks_per_doc is not None:
         kwargs['max_chunks_per_doc'] = max_chunks_per_doc
 
-    # Create client and rerank
+    # Create a client and rerank
     client = RegoloClient(api_key=api_key, reranker_model=model)
 
     try:
@@ -1181,7 +1181,7 @@ def rerank_documents(api_key: str, model: str, query: str, documents: tuple, doc
                 if output_format == 'json':
                     f.write(output)
                 else:
-                    # Save as JSON even if displayed as table
+                    # Save as JSON even if displayed as a table
                     f.write(json.dumps(response, indent=2, ensure_ascii=False))
             click.echo(f"✅ Reranking results saved to: {save_path}")
         else:

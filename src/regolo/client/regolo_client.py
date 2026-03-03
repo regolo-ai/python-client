@@ -138,7 +138,7 @@ class RegoloClient:
                    pre_existent_client=instance.client, pre_existent_conversation=instance.conversation)
 
     def change_model(self, model: str) -> None:
-        """Change model used in this instance of regolo_client"""
+        """Change the model used in this instance of regolo_client"""
         try:
             self.instance.change_model(new_model=model)
         except Exception as e:
@@ -227,7 +227,7 @@ class RegoloClient:
                 try:
                     # Repair and parse the JSON chunk
                     data_chunk = json.loads(json_repair.repair_json(decoded_line))
-                except Exception:
+                except Exception: # noqa
                     continue
 
                 if full_output:
@@ -254,7 +254,7 @@ class RegoloClient:
         Will return generators for stream=True and values for stream=False
         Send a prompt to regolo server and get the generated response.
 
-        :param prompt: The input prompt to the LLM.
+        :param prompt: The prompt in input to the LLM.
         :param model: The regolo.ai model to use. (Optional)
         :param api_key: The API key for regolo.ai. (Optional)
         :param stream: Whether to stream the prompt from regolo.ai. (Defaults to False)
@@ -269,7 +269,7 @@ class RegoloClient:
         :return for stream=true, full_output=False: Generator, which yields dicts with the responses from regolo.ai.
         :return for stream=True, full_output=True: Generator, which yields tuples of Role, Content of response.
         :return for stream=False, full_output=False: String with response from regolo.ai.
-        :return for stream=False, full_output=True: String containing the text of response.
+        :return for stream=False, full_output=True: String containing the text of the response.
         """
 
         def handle_search_text_completions(data: dict) -> str:
@@ -307,7 +307,7 @@ class RegoloClient:
             "top_k": top_k
         }
 
-        # Remove None values from payload to avoid unnecessary parameters
+        # Remove None values from the payload to avoid unnecessary parameters
         payload = {k: v for k, v in payload.items() if v is not None}
 
         # Set authorization header
@@ -350,7 +350,7 @@ class RegoloClient:
                     full_output: bool = False) -> str | GeneratorType:
         """
         Will return generators for stream=True and values for stream=False
-        Performs requests to completions endpoint from RegoloClient instance.
+        Performs requests to completions endpoint from the RegoloClient instance.
 
         :param prompt: The input prompt to the LLM.
         :param stream: Whether to stream the prompt from regolo.ai. (Defaults to False)
@@ -363,7 +363,7 @@ class RegoloClient:
         :return for stream=true, full_output=False: Generator, which yields dicts with the responses from regolo.ai.
         :return for stream=True, full_output=True: Generator, which yields tuples of Role, Content of response.
         :return for stream=False, full_output=False: String with response from regolo.ai.
-        :return for stream=False, full_output=True: String containing the text of response.
+        :return for stream=False, full_output=True: String containing the text of the response.
         """
         if self.instance.get_base_url() is None:
             base_url = os.getenv("REGOLO_URL")
@@ -416,7 +416,7 @@ class RegoloClient:
         :return for stream=true, full_output=False: Generator, which yields dicts with the responses from regolo.ai.
         :return for stream=True, full_output=True: Generator, which yields tuples of Role, Content of response.
         :return for stream=False, full_output=False: String, with response from regolo.ai.
-        :return for stream=False, full_output=True: Tuple, which consists of role and content of response.
+        :return for stream=False, full_output=True: Tuple, which consists of the role and content of a response.
         """
 
         _state = {"in_reasoning": False}
@@ -438,12 +438,12 @@ class RegoloClient:
                 return "", ""
 
             if isinstance(data, dict):
-                delta = data.get("choices", [{}])[0].get("delta", {})
-                return resolve(delta)
+                output_delta = data.get("choices", [{}])[0].get("delta", {})
+                return resolve(output_delta)
             elif isinstance(data, list):
                 for element in data:
-                    delta = element.get("choices", [{}])[0].get("delta", {})
-                    return resolve(delta)
+                    output_delta = element.get("choices", [{}])[0].get("delta", {})
+                    return resolve(output_delta)
             return None
 
         # Use the default API key if not provided
@@ -479,7 +479,7 @@ class RegoloClient:
             "top_k": top_k
         }
 
-        # Remove None values from payload to avoid unnecessary parameters
+        # Remove None values from the payload to avoid unnecessary parameters
         payload = {k: v for k, v in payload.items() if v is not None}
 
         # Set authorization header
@@ -506,20 +506,20 @@ class RegoloClient:
             ).json()
 
             if full_output:
-                # Return full response if requested
+                # Return the full response if requested
                 return response
             else:
                 # Extract role and content from response
-                role = response["choices"][0]["message"]["role"]
-                content = response["choices"][0]["message"]["content"]
-                return role, content
+                output_role = response["choices"][0]["message"]["role"]
+                output_content = response["choices"][0]["message"]["content"]
+                return output_role, output_content
 
     def add_prompt_to_chat(self, prompt: str, role: str):
         """
         Adds a prompt to the chat as the role specified
 
-        :param prompt: The prompt to add.
-        :param role: The role of the prompt to add.
+        :param prompt: The prompt to be added.
+        :param role: The role of the prompt to be added.
 
         :example:
             client = RegoloClient()
@@ -542,7 +542,7 @@ class RegoloClient:
                  top_k: Optional[int] = None,
                  full_output: bool = False) -> GeneratorType | tuple[Role, Content]:
         """
-        Runs chat endpoint from RegoloClient instance (self.conversation contains the role-prompts dicts).
+        Runs chat endpoint from the RegoloClient instance (self.conversation contains the role-prompts dicts).
 
         :param user_prompt: Optional prompt to add to conversation before generating the response from regolo.ai.
         :param stream: Whether to stream the prompt from regolo.ai.
@@ -550,11 +550,11 @@ class RegoloClient:
         :param temperature: Sampling temperature for randomness.
         :param top_p: Nucleus sampling parameter.
         :param top_k: Top-k sampling parameter.
-        :param full_output: Whether to return full response. (Defaults to False)
+        :param full_output: Whether to return a full response. (Defaults to False)
         :return for stream=true, full_output=False: Generator, which yields dicts with the responses from regolo.ai.
         :return for stream=True, full_output=True: Generator, which yields tuples of Role, Content of response.
         :return for stream=False, full_output=False: String, with response from regolo.ai.
-        :return for stream=False, full_output=True: Tuple, which consists of role and content of response.
+        :return for stream=False, full_output=True: Tuple, which consists of the role and content of a response.
         """
 
         if user_prompt is not None:
@@ -606,7 +606,7 @@ class RegoloClient:
         """
         Generates an image based on the given prompt using the regolo.ai image model.
 
-        :param prompt: The text prompt for image generation.
+        :param prompt: The text prompt to be used for image generation.
         :param model: The regolo.ai image model to use. (Optional)
         :param api_key: The API key for regolo.ai. (Optional)
         :param n: The number of images to generate. (Defaults to 1)
@@ -649,7 +649,7 @@ class RegoloClient:
             "style": style
         }
 
-        # Remove None values from payload
+        # Remove None values from the payload
         payload = {k: v for k, v in payload.items() if v is not None}
 
         # Set authorization header
@@ -666,7 +666,7 @@ class RegoloClient:
         if full_output:
             return response
         else:
-            # Extract the image URL from response
+            # Extract the image URL from the response
             return [b64decode(img_info["b64_json"]) for img_info in response["data"]]
 
     def create_image(self,
@@ -679,7 +679,7 @@ class RegoloClient:
         """
         Generates an image based on the given prompt using the regolo.ai image model.
 
-        :param prompt: The text prompt for image generation.
+        :param prompt: The text prompt to be used for image generation.
         :param n: The number of images to generate. (Defaults to 1)
         :param quality: The quality of the image that will be generated.
             The "hd" value creates images with finer details and greater consistency across the image.
@@ -725,7 +725,7 @@ class RegoloClient:
         :param api_key: The API key for regolo.ai. (Optional)
         :param client: HTTP client for making requests. (Optional)
         :param base_url: Base URL of the regolo HTTP server. (Optional)
-        :param full_output: Whether to return full response. (Defaults to False)
+        :param full_output: Whether to return a full response. (Defaults to False)
         """
         # Use the default API key if none is provided
         if api_key is None:
@@ -750,7 +750,7 @@ class RegoloClient:
             "model": model,
         }
 
-        # Remove None values from payload to avoid unnecessary parameters
+        # Remove None values from the payload to avoid unnecessary parameters
         payload = {k: v for k, v in payload.items() if v is not None}
 
         # Set authorization header
@@ -773,7 +773,7 @@ class RegoloClient:
                    full_output: bool = False) -> dict | list:
         """
         :param input_text: The text to be embedded.
-        :param full_output: Whether to return full response. (Defaults to False)
+        :param full_output: Whether to return a full response. (Defaults to False)
         """
         if self.instance.get_base_url() is None:
             base_url = os.getenv("REGOLO_URL")
@@ -973,7 +973,7 @@ class RegoloClient:
                             timestamp_granularities: Optional[List[str]] = None,
                             full_output: bool = False) -> str | dict | GeneratorType:
         """
-        Transcribes audio using the regolo.ai audio transcription model from RegoloClient instance.
+        Transcribes audio using the regolo.ai audio transcription model from the RegoloClient instance.
 
         :param file: The audio file object (bytes, file-like an object, or path string) to transcribe,
             in formats: flac, mp3, mp4, mpeg, mpga, m4a, ogg, wav, or webm.
@@ -1046,7 +1046,7 @@ class RegoloClient:
                       base_url: str = os.getenv("REGOLO_URL"),
                       full_output: bool = False) -> List[Dict[str, Any]] | dict:
         """
-        Reranks a list of documents based on their relevance to a query using regolo.ai reranking model.
+        Reranks a list of documents based on their relevance to a query using the regolo.ai reranking model.
 
         :param query: The search query to compare documents against.
         :param documents: List of documents to rerank.
@@ -1104,7 +1104,7 @@ class RegoloClient:
             "max_chunks_per_doc": max_chunks_per_doc
         }
 
-        # Remove None values from payload to avoid unnecessary parameters
+        # Remove None values from the payload to avoid unnecessary parameters
         payload = {k: v for k, v in payload.items() if v is not None}
 
         # Set authorization header
@@ -1135,8 +1135,8 @@ class RegoloClient:
                max_chunks_per_doc: Optional[int] = None,
                full_output: bool = False) -> List[Dict[str, Any]] | dict:
         """
-        Reranks a list of documents based on their relevance to a query using regolo.ai reranking model
-        from RegoloClient instance.
+        Reranks a list of documents based on their relevance to a query using the regolo.ai reranking model
+        from the RegoloClient instance.
 
         :param query: The search query to compare documents against.
         :param documents: List of documents to rerank.
