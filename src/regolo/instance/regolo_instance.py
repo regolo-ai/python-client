@@ -95,6 +95,14 @@ class RegoloInstance:
         """
         return self.embedder_model
 
+    def get_audio_model(self) -> str:
+        """
+        Returns the audio transcription model.
+
+        :return: The audio transcription model as a string.
+        """
+        return self.audio_transcription_model
+
     def get_reranker_model(self) -> Optional[str]:
         """
         Returns the reranker model.

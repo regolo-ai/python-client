@@ -43,6 +43,9 @@ urls.Homepage = "https://github.com/regolo-ai/python-client"
 
 scripts.regolo = "regolo.cli:cli"
 
+[tool.pytest.ini_options]
+testpaths = [ "tests" ]
+
 [tool.bumpver]
 current_version = "1.11.0"
 version_pattern = "MAJOR.MINOR.PATCH"
