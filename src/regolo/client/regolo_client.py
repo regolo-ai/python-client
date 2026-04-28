@@ -1022,7 +1022,7 @@ class RegoloClient:
 
         # Use the instance model if not specified
         if model is None:
-            model = self.instance.get_model()
+            model = self.instance.get_audio_model()
 
         return self.static_audio_transcription(
             file=file,
