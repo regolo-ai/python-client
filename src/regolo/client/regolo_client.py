@@ -59,7 +59,8 @@ Content: TypeAlias = str
 def safe_post(client: httpx.Client,
               url_to_query: str,
               json_to_query: Optional[dict] = None,
-              headers_to_query: Optional[dict] = None) -> httpx.Response:
+              headers_to_query: Optional[dict] = None,
+              max_retries: int = 2) -> httpx.Response:
     """
     Sends a POST request using the provided HTTPX client.
 
@@ -73,9 +74,16 @@ def safe_post(client: httpx.Client,
     :raises httpx.HTTPStatusError: If the request fails with an HTTP error status.
     """
 
-    response = client.post(url=url_to_query, json=json_to_query, headers=headers_to_query, timeout=timeout)
-    response.raise_for_status()
-    return response
+    for attempt in range(max_retries + 1):
+        response = client.post(url=url_to_query, json=json_to_query, headers=headers_to_query, timeout=timeout)
+
+        try:
+            response.raise_for_status()
+            return response
+        except httpx.HTTPStatusError as error:
+            if 500 <= response.status_code < 600 and attempt < max_retries:
+                continue
+            raise error
 
 
 class RegoloClient:
@@ -1014,7 +1022,7 @@ class RegoloClient:
 
         # Use the instance model if not specified
         if model is None:
-            model = self.instance.get_model()
+            model = self.instance.get_audio_model()
 
         return self.static_audio_transcription(
             file=file,
