@@ -16,9 +16,9 @@ from PIL import Image
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 import regolo
+from regolo.cli import ModelManagementClient
 from regolo.client.regolo_client import RegoloClient
 from regolo.models.models import ModelsHandler
-
 
 BASE_URL = "https://regolo.test"
 CHAT_MODEL = "chat-model"
@@ -53,6 +53,72 @@ def request_json(request: httpx.Request) -> dict[str, Any]:
 
 def json_response(request: httpx.Request, payload: dict[str, Any], status_code: int = 200) -> httpx.Response:
     return httpx.Response(status_code=status_code, json=payload, request=request)
+
+
+def test_model_registration_revision_is_additive_and_force_is_not_transmitted(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr("regolo.cli.CONFIG_FILE", str(tmp_path / "config.json"))
+    client = ModelManagementClient(base_url="https://devmid.test")
+    client.token = "access"
+    seen = {}
+
+    def request(method, url, **kwargs):
+        seen.update(method=method, url=url, payload=kwargs.get("json"))
+        req = httpx.Request(method, url)
+        return json_response(req, {"success": True})
+
+    monkeypatch.setattr(httpx, "request", request)
+    client.register_model(
+        "private", "huggingface", "org/private", "hf-token", True, "release-v2"
+    )
+    assert seen == {
+        "method": "POST",
+        "url": "https://devmid.test/models/load",
+        "payload": {
+            "name": "private",
+            "provider": "huggingface",
+            "url": "org/private",
+            "api_key": "hf-token",
+            "revision": "release-v2",
+        },
+    }
+
+
+def test_revision_update_uses_registration_id_and_defaults_to_latest(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr("regolo.cli.CONFIG_FILE", str(tmp_path / "config.json"))
+    client = ModelManagementClient(base_url="https://devmid.test")
+    client.token = "access"
+    calls = []
+
+    def request(method, url, **kwargs):
+        calls.append((method, url, kwargs.get("json")))
+        req = httpx.Request(method, url)
+        return json_response(req, {"registration_id": 43, "scan_status": "pending"})
+
+    monkeypatch.setattr(httpx, "request", request)
+    result = client.update_model_revision(42)
+    assert result["registration_id"] == 43
+    assert calls == [("PATCH", "https://devmid.test/models/42/revision", {})]
+
+
+def test_wait_for_scan_understands_awaiting_credentials(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr("regolo.cli.CONFIG_FILE", str(tmp_path / "config.json"))
+    client = ModelManagementClient(base_url="https://devmid.test")
+    monkeypatch.setattr(
+        client,
+        "get_model",
+        lambda _name: {
+            "scan_status": "awaiting_credentials",
+            "scan_detail": "register again with a valid key",
+        },
+    )
+    with pytest.raises(Exception, match="awaiting_credentials"):
+        client.wait_for_scan("private", timeout=0)
 
 
 def completion_payload(text: str) -> dict[str, Any]:

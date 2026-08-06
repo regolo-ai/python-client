@@ -7,6 +7,7 @@ sys.path.insert(0, parent_dir)
 import json
 import pprint
 import re
+import time
 from datetime import datetime
 from io import BytesIO
 from typing import Any, Optional
@@ -134,19 +135,44 @@ class ModelManagementClient:
     # Model Management Methods
     def register_model(self, name: str, provider: str,
                        url: Optional[str] = None, api_key: Optional[str] = None,
-                       force: bool = False):
-        """Register a new model"""
+                       force: bool = False, revision: Optional[str] = None):
+        """Register a Hugging Face model at an optional revision.
+
+        ``force`` is retained for source compatibility with client <=1.12,
+        but devmid no longer accepts or needs it during registration.
+        """
         data = {
             "name": name,
             "provider": provider,
-            "force": force
         }
         if url:
             data["url"] = url
         if api_key:
             data["api_key"] = api_key
+        if revision:
+            data["revision"] = revision
 
         return self._make_request("POST", "/models/load", json=data)
+
+    def update_model_revision(
+        self,
+        registration_id: int,
+        revision: Optional[str] = None,
+        api_key: Optional[str] = None,
+    ):
+        """Create a replacement registration at ``revision`` or latest.
+
+        The server soft-deletes the addressed registration and returns the new
+        immutable registration. Omitting ``revision`` selects latest.
+        """
+        data = {}
+        if revision:
+            data["revision"] = revision
+        if api_key:
+            data["api_key"] = api_key
+        return self._make_request(
+            "PATCH", f"/models/{registration_id}/revision", json=data
+        )
 
     def get_models(self):
         """Get all models"""
@@ -159,6 +185,30 @@ class ModelManagementClient:
     def delete_model(self, model_name: str):
         """Delete a model"""
         return self._make_request("DELETE", f"/models/{model_name}")
+
+    def wait_for_scan(
+        self, model_name: str, timeout: float = 3600, poll_interval: float = 5
+    ):
+        """Poll model details until the shared artifact becomes safe.
+
+        Returns the final model response. Unsafe, inconclusive, credential-
+        blocked, and timeout outcomes raise an exception instead of attempting
+        inference.
+        """
+        deadline = time.monotonic() + timeout
+        while True:
+            model = self.get_model(model_name)
+            status = model.get("scan_status")
+            if status == "safe":
+                return model
+            if status in {"unsafe", "inconclusive", "awaiting_credentials"}:
+                detail = model.get("scan_detail") or "no detail supplied"
+                raise Exception(f"Security scan stopped in {status}: {detail}")
+            if time.monotonic() >= deadline:
+                raise TimeoutError(
+                    f"Security scan for {model_name!r} did not finish within {timeout} seconds"
+                )
+            time.sleep(poll_interval)
 
     # SSH Key Management Methods
     def add_ssh_key(self, title: str, key: str):
@@ -256,12 +306,13 @@ def models():
 
 @models.command("register")
 @click.option('--name', required=True, help='Name for the model')
-@click.option('--type', 'model_type', type=click.Choice(['huggingface', 'ollama', 'custom']),
-              required=True, help='Type of model (huggingface or custom)')
+@click.option('--type', 'model_type', type=click.Choice(['huggingface']),
+              default='huggingface', show_default=True, help='Model provider')
 @click.option('--url', help='HuggingFace URL (required for huggingface models)')
 @click.option('--api-key', help='HuggingFace API key (optional, for private models)')
+@click.option('--revision', help='Commit, tag, or branch (defaults to latest)')
 def register_model(name: str, model_type: str, url: Optional[str],
-                   api_key: Optional[str]):
+                   api_key: Optional[str], revision: Optional[str]):
     """Register a new model in the system"""
     try:
 
@@ -273,14 +324,12 @@ def register_model(name: str, model_type: str, url: Optional[str],
             name=name,
             provider=model_type,
             url=url,
-            api_key=api_key
+            api_key=api_key,
+            revision=revision,
         )
 
         click.echo(f"✅ Model '{name}' registered successfully!")
-        if model_type=="huggingface":
-            click.echo("📥 HuggingFace model added to your regolo account! (remember to download it if you want to preserve it, since we do not store huggingface models locally)")
-        else:
-            click.echo("📂 Custom project created. You can now upload your model files using SSH")
+        click.echo("🔍 The immutable revision is queued for security scanning.")
 
     except Exception as e:
         click.echo(f"❌ Failed to register model: {e}")
@@ -309,6 +358,14 @@ def list_models(output_format: str):
                 click.echo(f"  • {model['name']} ({model_type})")
                 if model.get('url'):
                     click.echo(f"    URL: {model['url']}")
+                click.echo(f"    Registration ID: {model.get('registration_id')}")
+                click.echo(f"    Artifact ID: {model.get('scanned_artifact_id')}")
+                click.echo(f"    Revision: {model.get('revision') or model.get('source_revision')}")
+                click.echo(f"    Scan: {model.get('scan_status')}")
+                if model.get('content_digest'):
+                    click.echo(f"    Content digest: {model['content_digest']}")
+                if model.get('scan_detail'):
+                    click.echo(f"    Scan detail: {model['scan_detail']}")
                 click.echo(f"    Created: {model['created_at']}")
                 click.echo()
 
@@ -335,6 +392,13 @@ def model_details(model_name: str, output_format: str):
             click.echo(f"  Email: {model['email']}")
             if model.get('url'):
                 click.echo(f"  URL: {model['url']}")
+            click.echo(f"  Registration ID: {model.get('registration_id')}")
+            click.echo(f"  Artifact ID: {model.get('scanned_artifact_id')}")
+            click.echo(f"  Revision: {model.get('revision') or model.get('source_revision')}")
+            click.echo(f"  Content digest: {model.get('content_digest') or '-'}")
+            click.echo(f"  Scan status: {model.get('scan_status')}")
+            click.echo(f"  Scan verdict: {model.get('scan_verdict') or '-'}")
+            click.echo(f"  Scan detail: {model.get('scan_detail') or '-'}")
             click.echo(f"  Created: {model['created_at']}")
 
     except Exception as e:
@@ -358,6 +422,27 @@ def delete_model(model_name: str, confirm: bool):
 
     except Exception as e:
         click.echo(f"❌ Failed to delete model: {e}")
+        exit(1)
+
+
+@models.command("update-revision")
+@click.argument('registration_id', type=int)
+@click.option('--revision', help='Commit, tag, or branch; omit for latest')
+@click.option('--api-key', help='Hugging Face key, required when access cannot be resolved otherwise')
+def update_model_revision(registration_id: int, revision: Optional[str], api_key: Optional[str]):
+    """Replace a registration with another immutable Hugging Face revision."""
+    try:
+        model = model_client.update_model_revision(
+            registration_id=registration_id,
+            revision=revision,
+            api_key=api_key,
+        )
+        click.echo(
+            f"✅ Revision updated. New registration ID: {model.get('registration_id')}"
+        )
+        click.echo(f"🔍 Scan status: {model.get('scan_status')}")
+    except Exception as e:
+        click.echo(f"❌ Failed to update model revision: {e}")
         exit(1)
 
 
@@ -498,8 +583,6 @@ def build_vllm_config_from_options(**kwargs) -> dict:
     option_mapping = {
         'max_model_len': 'max_model_len',
         'max_num_batched_tokens': 'max_num_batched_tokens',
-        'gpu_memory_utilization': 'gpu_memory_utilization',
-        'tensor_parallel_size': 'tensor_parallel_size',
         'disable_log_requests': 'disable_log_requests',
         'enable_auto_tool_choice': 'enable_auto_tool_choice',
         'tool_call_parser': 'tool_call_parser',
@@ -659,27 +742,25 @@ def workflow():
 # Helper Commands
 @workflow.command("workflow")
 @click.argument('model_name')
-@click.option('--type', 'model_type', type=click.Choice(['huggingface', 'custom']),
-              required=True, help='Type of model')
+@click.option('--type', 'model_type', type=click.Choice(['huggingface']),
+              default='huggingface', show_default=True, help='Model provider')
 @click.option('--url', help='HuggingFace URL (required for huggingface models)')
 @click.option('--api-key', help='HuggingFace API key (optional)')
-@click.option('--ssh-key-file', help='Path to SSH public key file (for custom models)')
-@click.option('--ssh-key-title', help='Title for SSH key (for custom models)')
-@click.option('--local-model-path', help='Path to local model files (for custom models)')
+@click.option('--revision', help='Commit, tag, or branch (defaults to latest)')
 @click.option('--auto-load', is_flag=True, help='Automatically load model for inference after upload')
+@click.option('--scan-timeout', type=float, default=3600, show_default=True,
+              help='Seconds to wait for a safe scan before auto-loading')
 def complete_workflow(model_name: str, model_type: str, url: Optional[str],
-                      api_key: Optional[str], ssh_key_file: Optional[str], ssh_key_title: Optional[str],
-                      local_model_path: Optional[str], auto_load: bool):
-    """Complete workflow: register a model, upload (if custom), and optionally load for inference"""
+                      api_key: Optional[str], revision: Optional[str], auto_load: bool,
+                      scan_timeout: float):
+    """Register a Hugging Face revision and optionally load it after scanning."""
 
     try:
         click.echo(f"🚀 Starting complete workflow for '{model_name}'...")
 
         # Step 1: Register model
         click.echo("\n📝 Step 1: Registering model...")
-        not_ssh = model_type == 'huggingface' or 'ollama'
-
-        if not_ssh and not url:
+        if not url:
             click.echo("❌ URL is required for HuggingFace models")
             exit(1)
 
@@ -687,54 +768,16 @@ def complete_workflow(model_name: str, model_type: str, url: Optional[str],
             name=model_name,
             provider=model_type,
             url=url,
-            api_key=api_key
+            api_key=api_key,
+            revision=revision,
         )
         click.echo("✅ Model registered successfully!")
 
-        # Step 2: For custom models, handle SSH and upload
-        if model_type == 'custom':
-            click.echo("\n🔑 Step 2: Setting up SSH access...")
-
-            # Add an SSH key if provided
-            if ssh_key_file and ssh_key_title:
-                if os.path.exists(ssh_key_file):
-                    with open(ssh_key_file, 'r') as f:
-                        ssh_key_content = f.read().strip()
-
-                    try:
-                        model_client.add_ssh_key(ssh_key_title, ssh_key_content)
-                        click.echo(f"✅ SSH key '{ssh_key_title}' added successfully!")
-                    except Exception as e:
-                        if "already exists" in str(e).lower():
-                            click.echo(f"ℹ️  SSH key already exists, continuing...")
-                        else:
-                            raise e
-                else:
-                    click.echo(f"❌ SSH key file not found: {ssh_key_file}")
-                    exit(1)
-
-            # If a local model path provided, show git instructions
-            if local_model_path:
-                click.echo(f"\n📂 Step 3: Upload model files...")
-                click.echo("To upload your model files, run the following commands:")
-                click.echo(f"")
-                click.echo(f"  git clone git@gitlab.regolo.ai:<username>/{model_name}.git")
-                click.echo(f"  cd {model_name}")
-                click.echo(f"  cp -r {local_model_path}/* .")
-                click.echo(f"  git add .")
-                click.echo(f'  git commit -m "Add model files"')
-                click.echo(f"  git push origin main")
-                click.echo(f"")
-
-                if click.confirm("Have you completed the git upload?"):
-                    click.echo("✅ Model files uploaded!")
-                else:
-                    click.echo("⏸️  Workflow paused. Complete the git upload and then run the load command manually.")
-                    return
-
         # Step 3: Auto-load for inference if requested
         if auto_load:
-            click.echo(f"\n🖥️  Step 3: Loading model for inference...")
+            click.echo("\n🔍 Waiting for the shared artifact scan to become safe...")
+            model_client.wait_for_scan(model_name, timeout=scan_timeout)
+            click.echo("🖥️  Loading model for inference...")
 
             # Get available GPUs
             gpus_result = model_client.get_available_gpus()
