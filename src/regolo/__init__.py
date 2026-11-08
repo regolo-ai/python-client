@@ -1,22 +1,31 @@
 # The version of the current module.
-__version__ = "1.13.0"
+__version__ = "1.14.0"
 
 import os
 
 # Default values for the API key and model.
 # These can be set later before creating instances of the client.
-default_key = None
-default_chat_model = None
-default_image_generation_model = None
-default_embedder_model = None
-default_audio_transcription_model = None
-default_reranker_model = None
+default_key: str | None = None
+default_chat_model: str | None = None
+default_image_generation_model: str | None = None
+default_embedder_model: str | None = None
+default_audio_transcription_model: str | None = None
+default_reranker_model: str | None = None
 
-# if your server has a /models openai compatible endpoint, you can enable model availability checks
+# if your server has a /models OpenAI compatible endpoint, you can enable model availability checks
 enable_model_checks = True
 
 # Importing the main client from the regolo.client module for interacting with the Regolo API.
+from regolo.chat import FunctionTool, audio_part, image_part, text_part, video_part
 from regolo.client.regolo_client import RegoloClient
+from regolo.instance.structures.conversation_model import Conversation, ConversationLine
+from regolo.management import (
+    GPUPlanConfig,
+    ModelManagementClient,
+    ModelNotReadyError,
+    RegoloAPIError,
+    RegoloProtocolError,
+)
 
 # Exposing specific methods from the RegoloClient class to make them easily accessible.
 # These methods are used for interacting with the completions and chat completions APIs.
@@ -38,6 +47,8 @@ static_embeddings = RegoloClient.static_embeddings
 # static method for generating an audio transcription
 
 static_audio_transcription = RegoloClient.static_audio_transcription
+static_rerank = RegoloClient.static_rerank
+
 
 def key_load_from_env_if_exists():
     """
@@ -46,6 +57,7 @@ def key_load_from_env_if_exists():
     global default_key
     default_key = default_key if os.getenv("API_KEY") is None else os.getenv("API_KEY")
 
+
 def default_chat_model_load_from_env_if_exists():
     """
     Method, which will update default_model if its environment variable is set.
@@ -53,29 +65,46 @@ def default_chat_model_load_from_env_if_exists():
     global default_chat_model
     default_chat_model = default_chat_model if os.getenv("LLM") is None else os.getenv("LLM")
 
+
 def default_image_model_load_from_env_if_exists():
     """
     Method, which will update default_image_model if its environment variable is set.
     """
     global default_image_generation_model
-    default_image_generation_model = default_image_generation_model if os.getenv("IMAGE_GENERATION_MODEL") is None \
+    default_image_generation_model = (
+        default_image_generation_model
+        if os.getenv("IMAGE_GENERATION_MODEL") is None
         else os.getenv("IMAGE_GENERATION_MODEL")
+    )
+
 
 def default_embedder_model_load_from_env_if_exists():
     """
     Method, which will update default_embedder_model if its environment variable is set.
     """
     global default_embedder_model
-    default_embedder_model = default_embedder_model if os.getenv("EMBEDDER_MODEL") is None \
+    default_embedder_model = (
+        default_embedder_model
+        if os.getenv("EMBEDDER_MODEL") is None
         else os.getenv("EMBEDDER_MODEL")
+    )
+
 
 def default_audio_transcription_model_load_from_env_if_exists():
     """
     Method, which will update default_embedder_model if its environment variable is set.
     """
     global default_audio_transcription_model
-    default_audio_transcription_model = default_audio_transcription_model if os.getenv("AUDIO_TRANSCRIPTION_MODEL") is None \
+    default_audio_transcription_model = (
+        default_audio_transcription_model
+        if os.getenv("AUDIO_TRANSCRIPTION_MODEL") is None
         else os.getenv("AUDIO_TRANSCRIPTION_MODEL")
+    )
+
+
+def default_reranker_model_load_from_env_if_exists():
+    global default_reranker_model
+    default_reranker_model = os.getenv("RERANKER_MODEL", default_reranker_model)
 
 
 def try_loading_from_env():
@@ -88,3 +117,4 @@ def try_loading_from_env():
     default_image_model_load_from_env_if_exists()
     default_embedder_model_load_from_env_if_exists()
     default_audio_transcription_model_load_from_env_if_exists()
+    default_reranker_model_load_from_env_if_exists()

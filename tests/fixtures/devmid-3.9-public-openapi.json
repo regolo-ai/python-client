@@ -1,0 +1,4008 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Model Management API",
+    "description": "API for managing model registry with Keycloak SSO authentication",
+    "version": "3.9.0"
+  },
+  "paths": {
+    "/auth/login": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Authenticate user using Keycloak credentials",
+        "description": "Exchange Keycloak credentials for an access and refresh token set.\n\nCredentials are forwarded to the configured Keycloak realm and are not\nstored by devmid. Authentication failures and server errors use the shared\n`{detail}` error envelope.",
+        "operationId": "login_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest",
+                "description": "Keycloak username and password for the dashboard login flow."
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Authentication successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Login200Response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is inconsistent with the operation's rules.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is missing, expired, or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server error prevented the operation from completing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Refresh access token",
+        "description": "Exchange a Keycloak refresh token for new credentials.\n\nThe existing bearer dependency remains part of the production contract for\ncompatibility, even though the handler itself uses only the request body's\nrefresh token. A missing body is rejected by FastAPI validation.",
+        "operationId": "refresh_token_auth_refresh_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshTokenRequest",
+                "description": "Keycloak refresh token to exchange for a new token set."
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Token refresh successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Login200Response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is inconsistent with the operation's rules.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is missing, expired, or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server error prevented the operation from completing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": [
+              "model:read",
+              "model:write"
+            ]
+          }
+        ]
+      }
+    },
+    "/inference/gpus": {
+      "get": {
+        "tags": [
+          "Inference"
+        ],
+        "summary": "Get available GPUs and their status",
+        "description": "Return the denylist-filtered Seeweb GPU catalog used by model loading.\n\nPrices are customer hourly euros: the upstream Seeweb rate plus the\nconfigured billing percentage. A 503 means no usable catalog could be\nobtained; it is distinct from a valid empty result.",
+        "operationId": "get_available_gpus_inference_gpus_get",
+        "responses": {
+          "200": {
+            "description": "List of available GPUs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetAvailableGPUs200Response"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is missing, expired, or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The authenticated principal is not allowed to perform this operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server error prevented the operation from completing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A required upstream catalog or service is temporarily unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": [
+              "model:read"
+            ]
+          }
+        ]
+      }
+    },
+    "/inference/user-status": {
+      "get": {
+        "tags": [
+          "Inference"
+        ],
+        "summary": "Get inference status for models",
+        "description": "Return the authenticated user's inference and billing status.\n\nPending rows may have a null start date. Without filters the current month\nis selected; MMYYYY and explicit ISO 8601 ranges are mutually exclusive.",
+        "operationId": "get_user_inference_status_inference_user_status_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": [
+              "model:write"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(0[1-9]|1[0-2])\\d{4}$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional month filter in MMYYYY format",
+              "title": "Month"
+            },
+            "description": "Optional month filter in MMYYYY format"
+          },
+          {
+            "name": "time_range_start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Inclusive ISO 8601 range start.",
+              "title": "Time Range Start"
+            },
+            "description": "Inclusive ISO 8601 range start."
+          },
+          {
+            "name": "time_range_end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Inclusive ISO 8601 range end.",
+              "title": "Time Range End"
+            },
+            "description": "Inclusive ISO 8601 range end."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Inference status retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetInferenceStatus200Response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is inconsistent with the operation's rules.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is missing, expired, or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The authenticated principal is not allowed to perform this operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request failed FastAPI/Pydantic validation or an application validation rule.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HTTPValidationError"
+                    }
+                  ],
+                  "title": "Response 422 Get User Inference Status Inference User Status Get"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server error prevented the operation from completing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inference/loaded-models": {
+      "get": {
+        "tags": [
+          "Inference"
+        ],
+        "summary": "Get models currently loaded on GPU",
+        "description": "Return the caller's open inference sessions.\n\n\"Loaded\" is retained in the route name for compatibility. The underlying\ncontract is open sessions, so a newly reserved deployment can appear with\na null load_time while it is still pending.",
+        "operationId": "get_loaded_models_inference_loaded_models_get",
+        "responses": {
+          "200": {
+            "description": "List of models loaded on GPU",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetLoadedModels200Response"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is missing, expired, or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The authenticated principal is not allowed to perform this operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server error prevented the operation from completing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": [
+              "model:read"
+            ]
+          }
+        ]
+      }
+    },
+    "/inference/sessions": {
+      "get": {
+        "tags": [
+          "Inference"
+        ],
+        "summary": "Get the caller's inference session history",
+        "description": "The caller's inference session history, including finished sessions.\n\nComplements `/inference/loaded-models`, which returns open sessions only.\nA failed deployment is closed the moment the monitoring service reports it,\nso a failure never appears there \u2014 but its error text is recorded and is\nwhat this endpoint exists to make reachable.\n\nNewest first, paginated with a keyset cursor. `include_status`,\n`include_error`, and `include_billing` are opt-in. The error text is\nunbounded and never truncated; request it for one session or alongside\n`?status=error`.\n\nTake a `session_id` from here to call `/runtime/status` for one session's\nlive state.",
+        "operationId": "get_inference_sessions_inference_sessions_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": [
+              "model:read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "description": "Page size.",
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "Page size."
+          },
+          {
+            "name": "before_session_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Cursor: return sessions older than this id. Take it from next_cursor. Keyset rather than an offset, so a session created while paginating cannot shift or duplicate rows.",
+              "title": "Before Session Id"
+            },
+            "description": "Cursor: return sessions older than this id. Take it from next_cursor. Keyset rather than an offset, so a session created while paginating cannot shift or duplicate rows."
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(0[1-9]|1[0-2])\\d{4}$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "MMYYYY. Mutually exclusive with a time range.",
+              "title": "Month"
+            },
+            "description": "MMYYYY. Mutually exclusive with a time range."
+          },
+          {
+            "name": "time_range_start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Inclusive ISO 8601 range start.",
+              "title": "Time Range Start"
+            },
+            "description": "Inclusive ISO 8601 range start."
+          },
+          {
+            "name": "time_range_end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Exclusive ISO 8601 range end.",
+              "title": "Time Range End"
+            },
+            "description": "Exclusive ISO 8601 range end."
+          },
+          {
+            "name": "model_name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only sessions for this registered model name.",
+              "title": "Model Name"
+            },
+            "description": "Only sessions for this registered model name."
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only sessions with this status, e.g. error.",
+              "title": "Status"
+            },
+            "description": "Only sessions with this status, e.g. error."
+          },
+          {
+            "name": "include_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include the persisted status field in every returned session.",
+              "default": false,
+              "title": "Include Status"
+            },
+            "description": "Include the persisted status field in every returned session."
+          },
+          {
+            "name": "include_error",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include the failure text. OFF by default: it is unbounded and never truncated, so a page of fifty sessions could otherwise carry fifty stack traces. Turn it on for one session, or when filtering by status=error.",
+              "default": false,
+              "title": "Include Error"
+            },
+            "description": "Include the failure text. OFF by default: it is unbounded and never truncated, so a page of fifty sessions could otherwise carry fifty stack traces. Turn it on for one session, or when filtering by status=error."
+          },
+          {
+            "name": "include_billing",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include replica-aware billing metrics. With a month or time-range filter, cost_euro is clipped to that window; cost_euro_from_start always covers the session lifetime.",
+              "default": false,
+              "title": "Include Billing"
+            },
+            "description": "Include replica-aware billing metrics. With a month or time-range filter, cost_euro is clipped to that window; cost_euro_from_start always covers the session lifetime."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Page of the caller's session history",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetInferenceSessions200Response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is inconsistent with the operation's rules.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is missing, expired, or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The authenticated principal is not allowed to perform this operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request failed FastAPI/Pydantic validation or an application validation rule.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HTTPValidationError"
+                    }
+                  ],
+                  "title": "Response 422 Get Inference Sessions Inference Sessions Get"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server error prevented the operation from completing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inference/load": {
+      "post": {
+        "tags": [
+          "Inference"
+        ],
+        "summary": "Load model for inference",
+        "description": "Create an inference session and commit its deployment manifest.\n\nOnly scanned-safe models can load. Capacity, duplicate-open-session, billing,\nand upstream repository failures are reported explicitly. Production has\nhistorically returned HTTP 200, despite the legacy response class name.",
+        "operationId": "load_model_for_inference_inference_load_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoadInferenceRequest",
+                "description": "Registered model, GPU plan, and optional vLLM settings. Immutable revision fields are overwritten from the successful security scan."
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Deployment manifest prepared and loading initiated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoadInference202Response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is inconsistent with the operation's rules.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is missing, expired, or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "The account cannot start the requested paid workload.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The authenticated principal is not allowed to perform this operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested resource does not exist or is not visible to the caller.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request conflicts with the resource's current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request failed FastAPI/Pydantic validation or an application validation rule.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HTTPValidationError"
+                    }
+                  ],
+                  "title": "Response 422 Load Model For Inference Inference Load Post"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server error prevented the operation from completing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": [
+              "model:write"
+            ]
+          }
+        ]
+      }
+    },
+    "/inference/unload": {
+      "post": {
+        "tags": [
+          "Inference"
+        ],
+        "summary": "Unload model from inference",
+        "description": "Remove a deployment manifest and close its billing session.\n\nRetrying an already-closed session is idempotent. A 502 means the manifest\ncould not be removed upstream, so devmid did not pretend the unload finished.",
+        "operationId": "unload_model_from_inference_inference_unload_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnloadInferenceRequest",
+                "description": "Inference session id to close and remove from deployment git."
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Model unloaded from inference successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnloadInference200Response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is inconsistent with the operation's rules.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is missing, expired, or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The authenticated principal is not allowed to perform this operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested resource does not exist or is not visible to the caller.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request failed FastAPI/Pydantic validation or an application validation rule.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HTTPValidationError"
+                    }
+                  ],
+                  "title": "Response 422 Unload Model From Inference Inference Unload Post"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server error prevented the operation from completing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "An upstream service or deployment repository operation failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": [
+              "model:write"
+            ]
+          }
+        ]
+      }
+    },
+    "/models": {
+      "get": {
+        "tags": [
+          "Models"
+        ],
+        "summary": "Get all models",
+        "description": "List the authenticated user's live model registrations.\n\nEach registration includes the shared artifact's immutable revision,\nsecurity-scan state, and current capacity verdict.",
+        "operationId": "get_all_models_models_get",
+        "responses": {
+          "200": {
+            "description": "List of all models",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetAllModels200Response"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is missing, expired, or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The authenticated principal is not allowed to perform this operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server error prevented the operation from completing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": [
+              "model:read"
+            ]
+          }
+        ]
+      }
+    },
+    "/models/{model}": {
+      "get": {
+        "tags": [
+          "Models"
+        ],
+        "summary": "Get model details",
+        "description": "Return one registration selected by its owner-scoped model name.",
+        "operationId": "get_model_models__model__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": [
+              "model:read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "model",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owner-scoped registered model name. Numeric ids are not accepted.",
+              "title": "Model"
+            },
+            "description": "Owner-scoped registered model name. Numeric ids are not accepted."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Model details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Model"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is missing, expired, or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The authenticated principal is not allowed to perform this operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested resource does not exist or is not visible to the caller.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server error prevented the operation from completing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Models"
+        ],
+        "summary": "Delete a model",
+        "description": "Soft-delete a registration selected by its owner-scoped model name.\n\nShared immutable artifact and scan history are preserved for other users\nand as historical records; the registration's sealed credential is removed.",
+        "operationId": "delete_model_models__model__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": [
+              "model:write"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "model",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Model name",
+              "title": "Model"
+            },
+            "description": "Model name"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Model deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteModel200Response"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is missing, expired, or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The authenticated principal is not allowed to perform this operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested resource does not exist or is not visible to the caller.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server error prevented the operation from completing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/models/load": {
+      "post": {
+        "tags": [
+          "Models"
+        ],
+        "summary": "Register a Hugging Face model at an immutable revision",
+        "description": "Register a Hugging Face model at an immutable source revision.\n\nThis established route returns HTTP 200 in production; the historic model\nnaming and earlier generated 201 entry do not change that behavior.",
+        "operationId": "load_model_models_load_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoadModelRequest",
+                "description": "Model registration request. devmid normalizes the name, resolves the requested revision to an immutable commit, and seals credentials."
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Model registered successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is inconsistent with the operation's rules.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is missing, expired, or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The authenticated principal is not allowed to perform this operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request conflicts with the resource's current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request failed FastAPI/Pydantic validation or an application validation rule.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HTTPValidationError"
+                    }
+                  ],
+                  "title": "Response 422 Load Model Models Load Post"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server error prevented the operation from completing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "A required upstream catalog or service is temporarily unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": [
+              "model:write"
+            ]
+          }
+        ]
+      }
+    },
+    "/models/{model}/scan/retry": {
+      "post": {
+        "tags": [
+          "Models"
+        ],
+        "summary": "Retry a failed security scan",
+        "description": "Re-queue the shared immutable artifact after a retryable scanner result.\n\nAdministrator attestations and policies are authoritative and cannot be\nrevoked by an owner retry. Pending, active and already-safe scans also\nreturn 409 with dashboard-ready guidance from the model resource.",
+        "operationId": "retry_model_scan_models__model__scan_retry_post",
+        "security": [
+          {
+            "OAuth2PasswordBearer": [
+              "model:write"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "model",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Owner-scoped registered model name.",
+              "title": "Model"
+            },
+            "description": "Owner-scoped registered model name."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Artifact re-queued for scanning",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Model"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is missing, expired, or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The authenticated principal is not allowed to perform this operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested resource does not exist or is not visible to the caller.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request conflicts with the resource's current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server error prevented the operation from completing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ssh-keys": {
+      "get": {
+        "tags": [
+          "SSH Keys"
+        ],
+        "summary": "List SSH keys stored on the caller's GitLab account",
+        "description": "Return the SSH keys visible through the caller's exchanged GitLab token.",
+        "operationId": "get_all_ssh_keys_ssh_keys_get",
+        "responses": {
+          "200": {
+            "description": "List of all SSH keys",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetAllSSHKeys200Response"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is missing, expired, or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The authenticated principal is not allowed to perform this operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server error prevented the operation from completing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": [
+              "model:read"
+            ]
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "SSH Keys"
+        ],
+        "summary": "Add an SSH key to the caller's GitLab account",
+        "description": "Create an SSH key for the GitLab identity linked through SSO.\n\nDuplicate keys return 409. Production returns HTTP 200; the legacy response\nclass name containing `201` is retained only for source compatibility.",
+        "operationId": "add_ssh_key_ssh_keys_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddSSHKeyRequest",
+                "description": "Title and OpenSSH public-key material to create in GitLab."
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "SSH key added successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddSSHKey201Response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is inconsistent with the operation's rules.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is missing, expired, or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The authenticated principal is not allowed to perform this operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The request conflicts with the resource's current state.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request failed FastAPI/Pydantic validation or an application validation rule.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HTTPValidationError"
+                    }
+                  ],
+                  "title": "Response 422 Add Ssh Key Ssh Keys Post"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server error prevented the operation from completing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": [
+              "model:write"
+            ]
+          }
+        ]
+      }
+    },
+    "/ssh-keys/{keyId}": {
+      "delete": {
+        "tags": [
+          "SSH Keys"
+        ],
+        "summary": "Delete an SSH key from the caller's GitLab account",
+        "description": "Delete one GitLab SSH key owned by the authenticated user.",
+        "operationId": "delete_ssh_key_ssh_keys__keyId__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": [
+              "model:write"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "keyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Numeric GitLab SSH-key id.",
+              "title": "Keyid"
+            },
+            "description": "Numeric GitLab SSH-key id."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SSH key deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteSSHKey200Response"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request is inconsistent with the operation's rules.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is missing, expired, or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The authenticated principal is not allowed to perform this operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested resource does not exist or is not visible to the caller.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request failed FastAPI/Pydantic validation or an application validation rule.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/Error"
+                    },
+                    {
+                      "$ref": "#/components/schemas/HTTPValidationError"
+                    }
+                  ],
+                  "title": "Response 422 Delete Ssh Key Ssh Keys  Keyid  Delete"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server error prevented the operation from completing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/runtime/status": {
+      "get": {
+        "tags": [
+          "Runtime"
+        ],
+        "summary": "Get one inference session's runtime status",
+        "description": "Return pending, running, failed, completed, or stopped state for one session.\n\nHistorical closed sessions remain queryable. Their persisted error is\nreturned for failures and administrative stops, which lets clients inspect\nthe final reason after the session disappears from `/inference/loaded-models`.",
+        "operationId": "get_status_for_model_runtime_status_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": [
+              "model:read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "model_inference_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Inference session id returned by a load/history call.",
+              "title": "Model Inference Id"
+            },
+            "description": "Inference session id returned by a load/history call."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current or final state of the inference session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetRuntimeStatus200Response"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is missing, expired, or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The authenticated principal is not allowed to perform this operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested resource does not exist or is not visible to the caller.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server error prevented the operation from completing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/runtime/billing": {
+      "get": {
+        "tags": [
+          "Runtime"
+        ],
+        "summary": "Get one inference session's billing",
+        "description": "Return lifetime replica-aware cost for a session owned by the caller.\n\nRunning sessions are measured through request time; closed sessions are\nmeasured through their unload timestamp. Sessions that never reached a\nrunning state have zero billable usage.",
+        "operationId": "get_billing_for_model_runtime_billing_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": [
+              "model:read"
+            ]
+          }
+        ],
+        "parameters": [
+          {
+            "name": "model_inference_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Inference session id returned by a load/history call.",
+              "title": "Model Inference Id"
+            },
+            "description": "Inference session id returned by a load/history call."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lifetime billing for the inference session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetRuntimeBilling200Response"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication is missing, expired, or invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The authenticated principal is not allowed to perform this operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The requested resource does not exist or is not visible to the caller.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "An unexpected server error prevented the operation from completing.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AddSSHKey201Response": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id",
+            "description": "Unique identifier assigned by Gitlab"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title",
+            "description": "Title of the SSH key"
+          },
+          "fingerprint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fingerprint",
+            "description": "SSH key fingerprint for verification"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message",
+            "description": "Human-readable GitLab creation result."
+          }
+        },
+        "type": "object",
+        "title": "AddSSHKey201Response",
+        "description": "AddSSHKey201Response"
+      },
+      "AddSSHKeyRequest": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "Title/label for the SSH key"
+          },
+          "key": {
+            "type": "string",
+            "title": "Key",
+            "description": "The SSH public key content"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "key"
+        ],
+        "title": "AddSSHKeyRequest",
+        "description": "AddSSHKeyRequest"
+      },
+      "DeleteModel200Response": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "description": "Whether the registration was retired.",
+            "default": true
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message",
+            "description": "Deletion result. Shared scan history is intentionally preserved."
+          }
+        },
+        "type": "object",
+        "title": "DeleteModel200Response",
+        "description": "DeleteModel200Response"
+      },
+      "DeleteSSHKey200Response": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "description": "Whether GitLab accepted the key deletion."
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message",
+            "description": "Human-readable deletion result."
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "DeleteSSHKey200Response",
+        "description": "DeleteSSHKey200Response"
+      },
+      "Error": {
+        "properties": {
+          "detail": {
+            "type": "string",
+            "title": "Detail",
+            "description": "Human-readable explanation of why the request failed."
+          }
+        },
+        "type": "object",
+        "required": [
+          "detail"
+        ],
+        "title": "Error",
+        "description": "Application error envelope returned by ``HTTPException`` handlers."
+      },
+      "GPU": {
+        "properties": {
+          "InstanceType": {
+            "type": "string",
+            "title": "Instancetype",
+            "description": "Seeweb instance-plan identifier."
+          },
+          "GpuModel": {
+            "type": "string",
+            "title": "Gpumodel",
+            "description": "GPU model supplied by the Seeweb catalog."
+          },
+          "GpuCount": {
+            "type": "integer",
+            "title": "Gpucount",
+            "description": "Number of GPUs in the instance plan."
+          },
+          "CpuCount": {
+            "type": "integer",
+            "title": "Cpucount",
+            "description": "Number of virtual CPUs in the instance plan."
+          },
+          "MemoryGiB": {
+            "type": "number",
+            "title": "Memorygib",
+            "description": "System memory in GiB."
+          },
+          "PriceEUR": {
+            "type": "number",
+            "title": "Priceeur",
+            "description": "Customer hourly instance price in euros, including the configured billing percentage."
+          },
+          "Region": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region",
+            "description": "Seeweb region where the plan is offered, or null when no region currently has capacity for it."
+          },
+          "Details": {
+            "$ref": "#/components/schemas/GPU_Details",
+            "description": "GPU device and memory details."
+          },
+          "Available": {
+            "type": "boolean",
+            "title": "Available",
+            "description": "Whether Seeweb currently has capacity for the plan in some region. Plans hidden by the GPU denylist are omitted from the list entirely."
+          }
+        },
+        "type": "object",
+        "required": [
+          "InstanceType",
+          "GpuModel",
+          "GpuCount",
+          "CpuCount",
+          "MemoryGiB",
+          "PriceEUR",
+          "Details",
+          "Available"
+        ],
+        "title": "GPU",
+        "description": "GPU"
+      },
+      "GPUDetails_GPU_MemoryInfo": {
+        "properties": {
+          "SizeInMiB": {
+            "type": "integer",
+            "title": "Sizeinmib",
+            "description": "Memory size of GPU in MiB"
+          }
+        },
+        "type": "object",
+        "required": [
+          "SizeInMiB"
+        ],
+        "title": "GPUDetails_GPU_MemoryInfo",
+        "description": "GPU DETAILS"
+      },
+      "GPU_Details": {
+        "properties": {
+          "Gpus": {
+            "items": {
+              "$ref": "#/components/schemas/GPU_Details_GPU"
+            },
+            "type": "array",
+            "title": "Gpus",
+            "description": "List of available GPUs"
+          },
+          "TotalGpuMemoryInMiB": {
+            "type": "integer",
+            "title": "Totalgpumemoryinmib",
+            "description": "Total amount of available memory in MiB"
+          }
+        },
+        "type": "object",
+        "required": [
+          "Gpus",
+          "TotalGpuMemoryInMiB"
+        ],
+        "title": "GPU_Details",
+        "description": "GPU DETAILS"
+      },
+      "GPU_Details_GPU": {
+        "properties": {
+          "Name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Name of the GPU"
+          },
+          "Manufacturer": {
+            "type": "string",
+            "title": "Manufacturer",
+            "description": "Manufacturer of the GPU"
+          },
+          "Count": {
+            "type": "integer",
+            "title": "Count",
+            "description": "Count of available GPUs"
+          },
+          "MemoryInfo": {
+            "$ref": "#/components/schemas/GPUDetails_GPU_MemoryInfo",
+            "description": "Dict containing memory info"
+          }
+        },
+        "type": "object",
+        "required": [
+          "Name",
+          "Manufacturer",
+          "Count",
+          "MemoryInfo"
+        ],
+        "title": "GPU_Details_GPU",
+        "description": "GPU DETAILS GPU"
+      },
+      "GPU_Plan_Configuration": {
+        "properties": {
+          "min_replicas": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Min Replicas",
+            "description": "Minimum ready replicas. Zero enables scale-to-zero.",
+            "default": 1
+          },
+          "max_replicas": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Max Replicas",
+            "description": "Maximum ready replicas.",
+            "default": 1
+          }
+        },
+        "type": "object",
+        "title": "GPU_Plan_Configuration",
+        "description": "Autoscaling bounds rendered into the inference deployment."
+      },
+      "GetAllModels200Response": {
+        "properties": {
+          "models": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Model"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Models",
+            "description": "Registrations owned by the authenticated user."
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total",
+            "description": "Number of returned registrations."
+          }
+        },
+        "type": "object",
+        "title": "GetAllModels200Response",
+        "description": "GetAllModels200Response"
+      },
+      "GetAllSSHKeys200Response": {
+        "properties": {
+          "ssh_keys": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SSHKey"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ssh Keys",
+            "description": "SSH keys stored for the authenticated GitLab user."
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total",
+            "description": "Number of returned SSH keys."
+          }
+        },
+        "type": "object",
+        "title": "GetAllSSHKeys200Response",
+        "description": "GetAllSSHKeys200Response"
+      },
+      "GetAvailableGPUs200Response": {
+        "properties": {
+          "gpus": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/GPU"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gpus",
+            "description": "Array of available GPUs"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total",
+            "description": "Total number of GPUs"
+          }
+        },
+        "type": "object",
+        "title": "GetAvailableGPUs200Response",
+        "description": "GetAvailableGPUs200Response"
+      },
+      "GetInferenceSessions200Response": {
+        "properties": {
+          "sessions": {
+            "items": {
+              "$ref": "#/components/schemas/InferenceSession"
+            },
+            "type": "array",
+            "title": "Sessions",
+            "description": "This page of sessions, newest first."
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count",
+            "description": "Number of sessions returned in this page."
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Total sessions matching the filters, ignoring the pagination cursor."
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor",
+            "description": "Pass as before_session_id to request the next older page; null when no more matching sessions remain."
+          },
+          "total_cost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Cost",
+            "description": "Sum of cost_euro for this page. Present only with include_billing=true."
+          }
+        },
+        "type": "object",
+        "required": [
+          "sessions",
+          "count",
+          "total"
+        ],
+        "title": "GetInferenceSessions200Response",
+        "description": "A cursor-paginated page of the authenticated user's session history."
+      },
+      "GetInferenceStatus200Response": {
+        "properties": {
+          "inferences": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/InferenceStatus"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inferences",
+            "description": "Inference sessions retrieved"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total",
+            "description": "Number of inferences sessions retrieved"
+          },
+          "month": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Month",
+            "description": "The month corresponding to the retrieved sessions"
+          },
+          "total_cost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Cost",
+            "description": "Sum of the costs of the month's inferences"
+          }
+        },
+        "type": "object",
+        "title": "GetInferenceStatus200Response",
+        "description": "GetInferenceStatus200Response"
+      },
+      "GetLoadedModels200Response": {
+        "properties": {
+          "loaded_models": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/LoadedModel"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Loaded Models",
+            "description": "Array of models currently loaded on GPU"
+          },
+          "total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total",
+            "description": "Total number of loaded models"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id",
+            "description": "User ID"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id"
+        ],
+        "title": "GetLoadedModels200Response",
+        "description": "GetLoadedModels200Response"
+      },
+      "GetRuntimeBilling200Response": {
+        "properties": {
+          "session_id": {
+            "type": "integer",
+            "title": "Session Id",
+            "description": "Inference session identifier."
+          },
+          "duration_seconds": {
+            "type": "integer",
+            "title": "Duration Seconds",
+            "description": "Wall-clock runtime through unload or request time, in seconds."
+          },
+          "duration_hours": {
+            "type": "integer",
+            "title": "Duration Hours",
+            "description": "Wall-clock runtime after whole-hour rounding."
+          },
+          "replica_seconds": {
+            "type": "number",
+            "title": "Replica Seconds",
+            "description": "Replica-weighted runtime through unload or request time."
+          },
+          "billable_replica_hours": {
+            "type": "integer",
+            "title": "Billable Replica Hours",
+            "description": "Replica-hours charged after whole-hour rounding."
+          },
+          "hourly_price": {
+            "type": "number",
+            "title": "Hourly Price",
+            "description": "Snapshotted customer price per replica-hour in euros."
+          },
+          "cost_euro": {
+            "type": "number",
+            "title": "Cost Euro",
+            "description": "Lifetime session cost through unload or request time, in euros."
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_id",
+          "duration_seconds",
+          "duration_hours",
+          "replica_seconds",
+          "billable_replica_hours",
+          "hourly_price",
+          "cost_euro"
+        ],
+        "title": "GetRuntimeBilling200Response",
+        "description": "Replica-aware lifetime cost for an inference session owned by the caller."
+      },
+      "GetRuntimeStatus200Response": {
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/InferenceStatusEnum",
+            "description": "Current or final runtime status: pending, running, failed, completed, or administratively stopped."
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "Persisted failure text for failed sessions or the administrative termination reason for stopped sessions; otherwise null."
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "GetRuntimeStatus200Response",
+        "description": "GetRuntimeStatus200Response"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "InferenceSession": {
+        "properties": {
+          "session_id": {
+            "type": "integer",
+            "title": "Session Id",
+            "description": "Session id; accepted by /runtime/status and /inference/unload."
+          },
+          "session_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Number",
+            "description": "Externally visible session number assigned when the session is reserved."
+          },
+          "registration_id": {
+            "type": "integer",
+            "title": "Registration Id",
+            "description": "Immutable UserModel registration that this session belongs to."
+          },
+          "model_name": {
+            "type": "string",
+            "title": "Model Name",
+            "description": "Historical registered model name."
+          },
+          "gpu": {
+            "type": "string",
+            "title": "Gpu",
+            "description": "GPU instance type requested for this session."
+          },
+          "load_timestamp": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Load Timestamp",
+            "description": "When the deployment started serving. Null when it failed before becoming ready or is still queued."
+          },
+          "unload_timestamp": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unload Timestamp",
+            "description": "When the session closed. Null while it is still open."
+          },
+          "is_open": {
+            "type": "boolean",
+            "title": "Is Open",
+            "description": "True exactly when unload_timestamp is null."
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status",
+            "description": "Persisted operational status. Present only with include_status=true."
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "Persisted observability failure text. Present only with include_error=true; returned in full and never truncated."
+          },
+          "duration_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Seconds",
+            "description": "Wall-clock runtime inside the requested history window. Present only with include_billing=true."
+          },
+          "duration_hours": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Hours",
+            "description": "Wall-clock hours after whole-hour rounding. Present only with include_billing=true."
+          },
+          "replica_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replica Seconds",
+            "description": "Replica-weighted runtime inside the requested history window. Present only with include_billing=true."
+          },
+          "billable_replica_hours": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Billable Replica Hours",
+            "description": "Replica-hours charged after whole-hour rounding. Present only with include_billing=true."
+          },
+          "hourly_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hourly Price",
+            "description": "Snapshotted customer price per replica-hour in euros. Present only with include_billing=true."
+          },
+          "cost_euro_from_start": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Euro From Start",
+            "description": "Lifetime session cost through unload or request time. Present only with include_billing=true."
+          },
+          "cost_euro": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Euro",
+            "description": "Cost inside the requested history window, or lifetime cost when no time filter is supplied. Present only with include_billing=true."
+          },
+          "max_model_len": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Model Len",
+            "description": "Effective vLLM context length for this session."
+          },
+          "max_model_len_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Model Len Source",
+            "description": "Constraint that selected max_model_len."
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_id",
+          "registration_id",
+          "model_name",
+          "gpu",
+          "is_open"
+        ],
+        "title": "InferenceSession",
+        "description": "One inference session, whether open or already closed.\n\n``status`` and ``error`` are deliberately optional *response fields*.\nBilling fields follow the same rule. They are omitted unless the caller\nasks for them, so a history page does not have to transport operational\nstate, potentially very large failure logs, or replica-meter calculations\nfor every old session."
+      },
+      "InferenceStatus": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "Inference session identifier."
+          },
+          "model_name": {
+            "type": "string",
+            "title": "Model Name",
+            "description": "Name of the model"
+          },
+          "status": {
+            "$ref": "#/components/schemas/InferenceStatusEnum",
+            "description": "Current status of the inference"
+          },
+          "start_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Date",
+            "description": "Timestamp when loading started. Null while a reserved session is still pending and has not received a load timestamp."
+          },
+          "end_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Date",
+            "description": "Timestamp of when the inference eventually ended as per when this status was requested"
+          },
+          "gpu_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gpu Id",
+            "description": "The id of the GPU (or its server's name)"
+          },
+          "duration_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Seconds",
+            "description": "Inference duration in seconds as per when this status was requested"
+          },
+          "duration_hours": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Hours",
+            "description": "Inference duration in hours when this status was requested."
+          },
+          "replica_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Replica Seconds",
+            "description": "Replica-weighted runtime inside the requested billing window."
+          },
+          "billable_replica_hours": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Billable Replica Hours",
+            "description": "Replica-hours charged after applying whole-hour rounding."
+          },
+          "hourly_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hourly Price",
+            "description": "Hourly price of the inference as per when this status was requested"
+          },
+          "cost_euro_from_start": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Euro From Start",
+            "description": "Cost euro from start of the actual inference"
+          },
+          "cost_euro": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Euro",
+            "description": "Cost in Euros of the inference as per when this status was requested"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "model_name",
+          "status"
+        ],
+        "title": "InferenceStatus",
+        "description": "InferenceStatus"
+      },
+      "InferenceStatusEnum": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "running",
+          "failed",
+          "completed",
+          "stopped"
+        ],
+        "title": "InferenceStatusEnum",
+        "description": "Status values for inference sessions.\n\nValues:\n    pending: Model is registered but waiting to start loading\n    running: Model is actively running and serving requests\n    failed: Model failed during loading or execution\n    completed: Model completed successfully\n    stopped: Model was deliberately stopped by an administrator"
+      },
+      "LoadInference202Response": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "description": "Whether deployment preparation succeeded."
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message",
+            "description": "Deployment outcome and session guidance."
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id",
+            "description": "Reserved inference session identifier."
+          },
+          "max_model_len": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Model Len",
+            "description": "Effective vLLM context length rendered into the deployment."
+          },
+          "max_model_len_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Model Len Source",
+            "description": "Constraint that selected max_model_len: default, requested, model or gpu."
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "LoadInference202Response",
+        "description": "LoadInference202Response"
+      },
+      "LoadInferenceRequest": {
+        "properties": {
+          "model_name": {
+            "type": "string",
+            "title": "Model Name",
+            "description": "Registered model name owned by the caller."
+          },
+          "gpu": {
+            "type": "string",
+            "title": "Gpu",
+            "description": "Seeweb GPU instance plan to deploy."
+          },
+          "force": {
+            "type": "boolean",
+            "title": "Force",
+            "description": "Replace an existing deployment manifest when the load path permits it.",
+            "default": false
+          },
+          "gpu_plan_config": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GPU_Plan_Configuration"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Autoscaling bounds for the KubeAI deployment. Defaults to one fixed replica when omitted."
+          },
+          "vllm_config": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VLLMEngineConfig"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional vLLM engine arguments; revision fields are server controlled."
+          }
+        },
+        "type": "object",
+        "required": [
+          "model_name",
+          "gpu"
+        ],
+        "title": "LoadInferenceRequest",
+        "description": "LoadInferenceRequest"
+      },
+      "LoadModelRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 20,
+            "minLength": 1,
+            "title": "Name",
+            "description": "Name for the model"
+          },
+          "provider": {
+            "type": "string",
+            "const": "huggingface",
+            "title": "Provider",
+            "description": "Model provider; currently only Hugging Face is supported"
+          },
+          "url": {
+            "type": "string",
+            "minLength": 3,
+            "title": "Url",
+            "description": "Hugging Face repository URL or org/model identifier"
+          },
+          "api_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Key",
+            "description": "Provider API key for private-model access; sealed before storage.",
+            "writeOnly": true
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision",
+            "description": "Requested Hugging Face revision (commit, tag, or branch). It is resolved to an immutable commit SHA; omitted means latest."
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "provider",
+          "url"
+        ],
+        "title": "LoadModelRequest",
+        "description": "LoadModelRequest"
+      },
+      "LoadedModel": {
+        "properties": {
+          "session_id": {
+            "type": "integer",
+            "title": "Session Id",
+            "description": "Id of the session used to unload"
+          },
+          "model_name": {
+            "type": "string",
+            "title": "Model Name",
+            "description": "Name of the loaded model"
+          },
+          "gpu_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gpu Id",
+            "description": "GPU identifier where the model is loaded"
+          },
+          "load_time": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Load Time",
+            "description": "Timestamp when the model was loaded (NULL if pending)"
+          },
+          "cost": {
+            "type": "number",
+            "title": "Cost",
+            "description": "Cost from the start of the inference session in euro"
+          },
+          "status": {
+            "$ref": "#/components/schemas/InferenceStatusEnum",
+            "description": "Current status of the loaded model"
+          },
+          "max_model_len": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Model Len",
+            "description": "Effective vLLM context length for this deployment."
+          },
+          "max_model_len_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Model Len Source",
+            "description": "Constraint that selected max_model_len."
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_id",
+          "model_name",
+          "gpu_id",
+          "load_time",
+          "cost",
+          "status"
+        ],
+        "title": "LoadedModel",
+        "description": "Represents a model loaded for inference.\n\nAttributes:\n    session_id: Unique session identifier for unloading\n    model_name: Name of the loaded model\n    gpu_id: GPU identifier where model is loaded (may be NULL if not yet assigned)\n    load_time: Timestamp when model started running (may be NULL if pending)\n    cost: Total cost in EUR from session start (NULL if load_time is NULL)\n    status: Current status of the loaded model"
+      },
+      "Login200Response": {
+        "properties": {
+          "access_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Access Token",
+            "description": "Bearer access token accepted by devmid."
+          },
+          "refresh_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refresh Token",
+            "description": "Token used with POST /auth/refresh."
+          },
+          "expires_in": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires In",
+            "description": "Access-token lifetime in seconds."
+          },
+          "token_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token Type",
+            "description": "Token scheme returned by Keycloak, normally Bearer."
+          }
+        },
+        "type": "object",
+        "title": "Login200Response",
+        "description": "Token set returned by login and refresh operations."
+      },
+      "LoginRequest": {
+        "properties": {
+          "username": {
+            "type": "string",
+            "title": "Username",
+            "description": "Keycloak username or login identifier."
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "title": "Password",
+            "description": "Keycloak password.",
+            "writeOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "LoginRequest",
+        "description": "Keycloak resource-owner credentials used by the dashboard login flow."
+      },
+      "Model": {
+        "properties": {
+          "registration_id": {
+            "type": "integer",
+            "title": "Registration Id",
+            "description": "Immutable UserModel registration id"
+          },
+          "scanned_artifact_id": {
+            "type": "integer",
+            "title": "Scanned Artifact Id",
+            "description": "Shared ScannedArtifact id"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email",
+            "description": "Email of the model"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Name of the model"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider",
+            "description": "String indicating the provider of the model"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url",
+            "description": "HuggingFace URL of the model (for HuggingFace models)"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Timestamp when the model was registered"
+          },
+          "is_safe": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Safe",
+            "description": "Whether the model passed its security scan. true = inference allowed; false = rejected or inconclusive; null = outcome not yet known (pending, scanning, or scan errored)."
+          },
+          "scan_status": {
+            "type": "string",
+            "title": "Scan Status",
+            "description": "Security scan lifecycle state: pending, scanning, safe, unsafe, inconclusive, error, awaiting_credentials, or capacity_blocked_state. The capacity blocker is a Devmid dispatch decision and carries no security verdict.",
+            "default": "pending"
+          },
+          "scan_detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scan Detail",
+            "description": "Human-readable explanation of the scan outcome"
+          },
+          "scan_report_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scan Report Url",
+            "description": "Link to the full scan report, when available"
+          },
+          "scan_updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scan Updated At",
+            "description": "When the scan status last changed"
+          },
+          "source_revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Revision",
+            "description": "Immutable upstream revision (HuggingFace commit sha) that was scanned, and that will be pinned at inference time"
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision",
+            "description": "Current immutable upstream revision; alias of source_revision"
+          },
+          "content_digest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Digest",
+            "description": "Digest of the exact downloaded content reported by the scanner"
+          },
+          "scan_verdict": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scan Verdict",
+            "description": "Terminal scanner verdict; null while pending, scanning, or errored"
+          },
+          "scanner_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scanner Version",
+            "description": "Scanner build that produced the current verdict"
+          },
+          "scan_claimed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scan Claimed At",
+            "description": "When the current scan attempt was claimed"
+          },
+          "capacity_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capacity Status",
+            "description": "Whether devmid can host this model: unknown, supported, requires_approval, approved_exception, unsupported or hard_limit_exceeded. Separate from scan_status because security and hostability are independent - a model can be perfectly safe and still too large for the hardware we currently sell. Without this a caller sees scan_status='safe' and a load that fails with no visible reason."
+          },
+          "capacity_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Capacity Reason",
+            "description": "Human-readable explanation of capacity_status."
+          },
+          "weight_bytes_estimate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weight Bytes Estimate",
+            "description": "Estimated bytes a serving runtime would load. Not the repository size, which overcounts where a repo ships several formats."
+          },
+          "verdict_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verdict Source",
+            "description": "Effective trust source: scanner, admin_attestation or admin_policy."
+          },
+          "trust_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trust Reason",
+            "description": "Human-readable reason attached to an administrator trust decision."
+          },
+          "trust_evidence_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trust Evidence Url",
+            "description": "Optional evidence URL attached to an administrator trust decision."
+          },
+          "scan_retry_allowed": {
+            "type": "boolean",
+            "title": "Scan Retry Allowed",
+            "description": "Whether the owner may currently request a fresh security scan.",
+            "default": false
+          },
+          "scan_retry_reason": {
+            "type": "string",
+            "title": "Scan Retry Reason",
+            "description": "Dashboard-ready explanation of scan_retry_allowed.",
+            "default": "Scan retry is not available in the current state."
+          },
+          "recommended_action": {
+            "type": "string",
+            "title": "Recommended Action",
+            "description": "Dashboard action: wait, load, retry_scan, replace_credential or contact_admin.",
+            "default": "wait"
+          }
+        },
+        "type": "object",
+        "required": [
+          "registration_id",
+          "scanned_artifact_id",
+          "email",
+          "name",
+          "provider",
+          "created_at"
+        ],
+        "title": "Model",
+        "description": "Model"
+      },
+      "RefreshTokenRequest": {
+        "properties": {
+          "refresh_token": {
+            "type": "string",
+            "title": "Refresh Token",
+            "description": "Keycloak refresh token to exchange for a new token set.",
+            "writeOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "refresh_token"
+        ],
+        "title": "RefreshTokenRequest",
+        "description": "Refresh credential issued by a successful Keycloak token exchange."
+      },
+      "SSHKey": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Unique GitLab SSH-key identifier."
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "Title/label of the SSH key"
+          },
+          "key": {
+            "type": "string",
+            "title": "Key",
+            "description": "SSH public-key material returned by GitLab."
+          },
+          "fingerprint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fingerprint",
+            "description": "SSH key fingerprint"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Timestamp when the SSH key was added"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "key",
+          "fingerprint",
+          "created_at"
+        ],
+        "title": "SSHKey",
+        "description": "SSHKey"
+      },
+      "SuccessResponse": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "description": "Whether the operation succeeded.",
+            "default": true
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message",
+            "description": "Human-readable outcome or follow-up guidance."
+          }
+        },
+        "type": "object",
+        "title": "SuccessResponse",
+        "description": "Generic acknowledgement for operations without a richer result body."
+      },
+      "UnloadInference200Response": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success",
+            "description": "Whether the session is now closed."
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message",
+            "description": "Unload outcome, including idempotent retry information."
+          }
+        },
+        "type": "object",
+        "required": [
+          "success"
+        ],
+        "title": "UnloadInference200Response",
+        "description": "UnloadInference200Response"
+      },
+      "UnloadInferenceRequest": {
+        "properties": {
+          "session_id": {
+            "type": "integer",
+            "title": "Session Id",
+            "description": "Id of the session in which to unload from inference"
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_id"
+        ],
+        "title": "UnloadInferenceRequest",
+        "description": "UnloadInferenceRequest"
+      },
+      "VLLMDataType": {
+        "type": "string",
+        "enum": [
+          "auto",
+          "half",
+          "float16",
+          "bfloat16",
+          "float",
+          "float32"
+        ],
+        "title": "VLLMDataType"
+      },
+      "VLLMEngineConfig": {
+        "properties": {
+          "max_model_len": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Model Len",
+            "description": "Maximum model context length in tokens."
+          },
+          "max_num_batched_tokens": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Num Batched Tokens",
+            "description": "Maximum tokens processed in one scheduler iteration."
+          },
+          "max_num_seqs": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Num Seqs",
+            "description": "Maximum concurrent sequences per iteration."
+          },
+          "tensor_parallel_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tensor Parallel Size",
+            "description": "Server-controlled tensor-parallel worker count derived from the selected GPU plan.",
+            "readOnly": true
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revision",
+            "description": "Server-controlled immutable model revision; client values are overwritten.",
+            "readOnly": true
+          },
+          "tokenizer_revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tokenizer Revision",
+            "description": "Server-controlled tokenizer revision; client values are overwritten.",
+            "readOnly": true
+          },
+          "code_revision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code Revision",
+            "description": "Server-controlled remote-code revision; client values are overwritten.",
+            "readOnly": true
+          },
+          "dtype": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VLLMDataType"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Data type used for model weights and activations."
+          },
+          "kv_cache_dtype": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VLLMKVCacheDataType"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Data type used for the key/value cache."
+          },
+          "override_attention_dtype": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Override Attention Dtype",
+            "description": "Optional attention-computation data type override."
+          },
+          "enable_prefix_caching": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enable Prefix Caching",
+            "description": "Enable reuse of cached prompt prefixes."
+          },
+          "enable_chunked_prefill": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enable Chunked Prefill",
+            "description": "Split large prompt prefill work into scheduler chunks."
+          },
+          "block_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Block Size",
+            "description": "Token block size used by the cache manager."
+          },
+          "kv_sharing_fast_prefill": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kv Sharing Fast Prefill",
+            "description": "Enable fast prefill for compatible KV-sharing models."
+          },
+          "optimization_level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Optimization Level",
+            "description": "vLLM optimization-level selector."
+          },
+          "performance_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Performance Mode",
+            "description": "vLLM performance-mode selector."
+          },
+          "enable_auto_tool_choice": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enable Auto Tool Choice",
+            "description": "Allow the model to select tools automatically."
+          },
+          "tool_call_parser": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Call Parser",
+            "description": "Parser used to decode model-generated tool calls."
+          },
+          "chat_template": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chat Template",
+            "description": "Chat template name or template content passed to vLLM."
+          },
+          "reasoning_parser": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reasoning Parser",
+            "description": "Parser used for model-specific reasoning output."
+          },
+          "async_scheduling": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Async Scheduling",
+            "description": "Enable asynchronous request scheduling."
+          },
+          "stream_interval": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stream Interval",
+            "description": "Number of tokens between streamed response updates."
+          },
+          "speculative_config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speculative Config",
+            "description": "Advanced speculative-decoding configuration passed to vLLM."
+          },
+          "seed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seed",
+            "description": "Optional random seed for reproducible generation behavior."
+          }
+        },
+        "type": "object",
+        "title": "VLLMEngineConfig",
+        "description": "Simplified vLLM Engine Configuration for clean YAML output"
+      },
+      "VLLMKVCacheDataType": {
+        "type": "string",
+        "enum": [
+          "auto",
+          "fp8",
+          "fp8_e5m2",
+          "fp8_e4m3"
+        ],
+        "title": "VLLMKVCacheDataType"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "ValidationErrorLocInner": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "string"
+          }
+        ],
+        "title": "ValidationErrorLocInner",
+        "description": "String field name or integer array index in a validation-error path."
+      }
+    },
+    "securitySchemes": {
+      "OAuth2PasswordBearer": {
+        "type": "oauth2",
+        "flows": {
+          "password": {
+            "scopes": {
+              "model:read": "Read access to models",
+              "model:write": "Write access to models"
+            },
+            "tokenUrl": "https://sso.regolo.ai/auth/realms/regolo/protocol/openid-connect/token"
+          }
+        }
+      }
+    }
+  }
+}

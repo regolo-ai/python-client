@@ -4,3 +4,14 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 pytest-cache-files-*
+.venv/
+*.egg-info/
+build/
+dist/
+.coverage*
+htmlcov/
+.ruff_cache/
+.mypy_cache/
+pytest-of-root/
+pip-metadata-*/
+pip-unpack-*/

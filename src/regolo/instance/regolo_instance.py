@@ -1,10 +1,11 @@
-from typing import Dict, List, Optional
+from typing import Any, Optional
 
 import httpx
 
 from regolo.instance.structures.conversation_model import Conversation, ConversationLine
 from regolo.keys.keys import KeysHandler
 from regolo.models.models import ModelsHandler
+from regolo.transport import DEFAULT_TIMEOUT
 
 
 class RegoloInstance:
@@ -18,16 +19,21 @@ class RegoloInstance:
     :param previous_conversations: An optional `Conversation` instance to maintain chat history.
     """
 
-    def __init__(self,
-                 chat_model: Optional[str],
-                 embedder_model: Optional[str],
-                 image_generation_model: Optional[str],
-                 audio_transcription_model: Optional[str],
-                 reranker_model: Optional[str],
-                 api_key: str,
-                 base_url: str,
-                 client: Optional[httpx.Client],
-                 previous_conversations: Optional[Conversation] = None) -> None:
+    def __init__(
+        self,
+        chat_model: Optional[str],
+        embedder_model: Optional[str],
+        image_generation_model: Optional[str],
+        audio_transcription_model: Optional[str],
+        reranker_model: Optional[str],
+        api_key: str,
+        base_url: str | None,
+        client: Optional[httpx.Client],
+        previous_conversations: Optional[Conversation] = None,
+        *,
+        check_models: bool | None = None,
+        request_timeout: float | httpx.Timeout = DEFAULT_TIMEOUT,
+    ) -> None:
         """
         Initializes a RegoloInstance.
 
@@ -36,16 +42,28 @@ class RegoloInstance:
         :param client: Optional `httpx.Client` instance; if not provided, a new one is created.
         :param previous_conversations: Optional `Conversation` instance for maintaining chat history.
         """
-        self.conversation: Conversation = Conversation(
-            lines=[]) if previous_conversations is None else previous_conversations
-        self.client: httpx.Client = httpx.Client() if client is None else client
+        self.conversation: Conversation = (
+            Conversation(lines=[]) if previous_conversations is None else previous_conversations
+        )
         self.api_key: str = KeysHandler.check_key(api_key)
+        self._owns_client = client is None
+        self._closed = False
+        self.check_models = check_models
+        self.request_timeout = request_timeout
+        self.client: httpx.Client = (
+            httpx.Client(timeout=request_timeout) if client is None else client
+        )
         self.chat_model: Optional[str] = chat_model
         self.image_generation_model: Optional[str] = image_generation_model
         self.audio_transcription_model: Optional[str] = audio_transcription_model
         self.embedder_model: Optional[str] = embedder_model
         self.reranker_model: Optional[str] = reranker_model
-        self.base_url: str = base_url
+        self.base_url: str | None = base_url
+
+    def close(self) -> None:
+        if self._owns_client:
+            self.client.close()
+        self._closed = True
 
     def get_client(self) -> httpx.Client:
         """
@@ -53,6 +71,8 @@ class RegoloInstance:
 
         :return: The `httpx.Client` instance.
         """
+        if self._closed:
+            raise RuntimeError("Client is closed")
         return self.client
 
     def get_api_key(self) -> str:
@@ -63,15 +83,15 @@ class RegoloInstance:
         """
         return self.api_key
 
-    def get_model(self) -> str:
+    def get_model(self) -> str | None:
         """
         Returns the selected AI model.
 
-        :return: The model name as a string.
+        :return: The model name, or None when no chat model is configured.
         """
         return self.chat_model
 
-    def get_base_url(self) -> str:
+    def get_base_url(self) -> str | None:
         """
         Returns the base url.
 
@@ -79,7 +99,7 @@ class RegoloInstance:
         """
         return self.base_url
 
-    def get_image_model(self) -> str:
+    def get_image_model(self) -> str | None:
         """
         Returns the image model.
 
@@ -87,7 +107,7 @@ class RegoloInstance:
         """
         return self.image_generation_model
 
-    def get_embedder_model(self) -> str:
+    def get_embedder_model(self) -> str | None:
         """
         Returns the embedder model.
 
@@ -95,7 +115,7 @@ class RegoloInstance:
         """
         return self.embedder_model
 
-    def get_audio_model(self) -> str:
+    def get_audio_model(self) -> str | None:
         """
         Returns the audio transcription model.
 
@@ -117,9 +137,15 @@ class RegoloInstance:
 
         :param new_model: The new model name to switch to.
         """
-        self.chat_model = ModelsHandler.check_model(model=new_model, base_url=self.base_url, api_key=self.api_key)
+        self.chat_model = ModelsHandler.check_model(
+            model=new_model,
+            base_url=self.base_url,
+            api_key=self.api_key,
+            client=self.get_client(),
+            enabled=self.check_models,
+        )
 
-    def get_conversation(self) -> List[Dict[str, str]]:
+    def get_conversation(self) -> list[dict[str, Any]]:
         """
         Gets conversation as a list of dictionaries.
 

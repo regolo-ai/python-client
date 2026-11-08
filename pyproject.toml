@@ -7,7 +7,7 @@ requires = [ "setuptools>=75.8", "wheel" ]
 
 [project]
 name = "regolo"
-version = "1.13.0"
+version = "1.14.0"
 description = "Simple client to interact with regolo.ai"
 readme = "README.md"
 keywords = [ "chat", "llm", "regolo" ]
@@ -20,34 +20,47 @@ classifiers = [
   "Programming Language :: Python",
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
   "click",
-  "httpx",
-  "json-repair",
+  "httpx>=0.27,<1",
+  "jsonschema>=4.22,<5",
   "pillow",
-  "pydantic",
-  "python-dotenv",
-  "requests",
+  "pydantic>=2.7,<3",
 ]
 
 optional-dependencies.dev = [
   "bumpver",
   "pip-tools",
   "pre-commit",
-  "pytest",
-  "python-dotenv",
+  "pytest>=8",
+  "pytest-cov>=5",
+  "ruff>=0.9",
+  "mypy>=1.14,<3",
+  "types-jsonschema",
+  "build>=1",
 ]
-optional-dependencies.imgs = [ "pillow~=11.1.0" ]
+optional-dependencies.imgs = [ "pillow>=11" ]
 urls.Homepage = "https://github.com/regolo-ai/python-client"
 
 scripts.regolo = "regolo.cli:cli"
 
 [tool.pytest.ini_options]
 testpaths = [ "tests" ]
+pythonpath = [ "src" ]
+
+[tool.setuptools.package-data]
+regolo = ["py.typed"]
+
+[tool.mypy]
+python_version = "3.12"
+check_untyped_defs = true
+files = ["src/regolo", "scripts", "tests"]
 
 [tool.bumpver]
-current_version = "1.13.0"
+current_version = "1.14.0"
 version_pattern = "MAJOR.MINOR.PATCH"
 commit_message = "bump version {old_version} -> {new_version}"
 tag_message = "{new_version}"
@@ -60,9 +73,24 @@ push = true
 "pyproject.toml" = [
   'current_version = "{version}"',
   'version = "{version}"',
-  'version = "{version}"',
-  'version = "{version}"',
 ]
 "src/regolo/__init__.py" = [
   '__version__ = "{version}"',
 ]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/regolo/__init__.py" = ["E402", "F401"]
+
+[tool.coverage.run]
+branch = true
+source = ["regolo"]
+
+[tool.coverage.report]
+show_missing = true

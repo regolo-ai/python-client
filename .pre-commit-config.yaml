@@ -1,60 +1,22 @@
-# See https://pre-commit.com for more information
-# See https://pre-commit.com/hooks.html for more hooks
-default_language_version:
-  python: python3.13
-
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
-        language_version: python3.12
-      - id: trailing-whitespace
-        language_version: python3.13
       - id: end-of-file-fixer
-        language_version: python3.12
-      - id: end-of-file-fixer
-        language_version: python3.13
       - id: check-yaml
-        language_version: python3.12
-      - id: check-yaml
-        language_version: python3.13
       - id: check-toml
-        language_version: python3.12
-      - id: check-toml
-        language_version: python3.13
       - id: check-added-large-files
-        language_version: python3.12
-      - id: check-added-large-files
-        language_version: python3.13
       - id: check-merge-conflict
-        language_version: python3.12
-      - id: check-merge-conflict
-        language_version: python3.13
-      - id: check-case-conflict
-        language_version: python3.12
-      - id: check-case-conflict
-        language_version: python3.13
-      - id: check-symlinks
-        language_version: python3.12
-      - id: check-symlinks
-        language_version: python3.13
-      - id: check-json
-        language_version: python3.12
-      - id: check-json
-        language_version: python3.13
-
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.7.2
+  - repo: local
     hooks:
-      - id: ruff
-        args: [ "--fix", "--select", "I" ]
-        language_version: python3.13
-
-  - repo: https://github.com/tox-dev/pyproject-fmt
-    rev: "2.2.4"
-    hooks:
-      - id: pyproject-fmt
-        language_version: python3.12
-      - id: pyproject-fmt
-        language_version: python3.13
+      - id: ruff-check
+        name: Ruff lint
+        entry: python -m ruff check
+        language: system
+        types: [python]
+      - id: ruff-format
+        name: Ruff format
+        entry: python -m ruff format --check
+        language: system
+        types: [python]

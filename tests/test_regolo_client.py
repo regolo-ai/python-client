@@ -2,22 +2,19 @@ from __future__ import annotations
 
 import base64
 import json
-import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import httpx
 import pytest
 from PIL import Image
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-
 import regolo
 from regolo.cli import ModelManagementClient
-from regolo.client.regolo_client import RegoloClient
+from regolo.client.regolo_client import RegoloClient, safe_post
 from regolo.models.models import ModelsHandler
 
 BASE_URL = "https://regolo.test"
@@ -43,7 +40,7 @@ def regolo_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(regolo, "enable_model_checks", False)
 
 
-def mock_client(handler: httpx.MockTransport) -> httpx.Client:
+def mock_client(handler: Callable[[httpx.Request], httpx.Response]) -> httpx.Client:
     return httpx.Client(transport=httpx.MockTransport(handler))
 
 
@@ -51,7 +48,9 @@ def request_json(request: httpx.Request) -> dict[str, Any]:
     return json.loads(request.read().decode("utf-8"))
 
 
-def json_response(request: httpx.Request, payload: dict[str, Any], status_code: int = 200) -> httpx.Response:
+def json_response(
+    request: httpx.Request, payload: dict[str, Any], status_code: int = 200
+) -> httpx.Response:
     return httpx.Response(status_code=status_code, json=payload, request=request)
 
 
@@ -61,17 +60,15 @@ def test_model_registration_revision_is_additive_and_force_is_not_transmitted(
     monkeypatch.setattr("regolo.cli.CONFIG_FILE", str(tmp_path / "config.json"))
     client = ModelManagementClient(base_url="https://devmid.test")
     client.token = "access"
-    seen = {}
+    seen: dict[str, Any] = {}
 
     def request(method, url, **kwargs):
         seen.update(method=method, url=url, payload=kwargs.get("json"))
         req = httpx.Request(method, url)
         return json_response(req, {"success": True})
 
-    monkeypatch.setattr(httpx, "request", request)
-    client.register_model(
-        "private", "huggingface", "org/private", "hf-token", True, "release-v2"
-    )
+    monkeypatch.setattr(client.http_client, "request", request)
+    client.register_model("private", "huggingface", "org/private", "hf-token", True, "release-v2")
     assert seen == {
         "method": "POST",
         "url": "https://devmid.test/models/load",
@@ -85,23 +82,12 @@ def test_model_registration_revision_is_additive_and_force_is_not_transmitted(
     }
 
 
-def test_revision_update_uses_registration_id_and_defaults_to_latest(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    monkeypatch.setattr("regolo.cli.CONFIG_FILE", str(tmp_path / "config.json"))
-    client = ModelManagementClient(base_url="https://devmid.test")
-    client.token = "access"
-    calls = []
-
-    def request(method, url, **kwargs):
-        calls.append((method, url, kwargs.get("json")))
-        req = httpx.Request(method, url)
-        return json_response(req, {"registration_id": 43, "scan_status": "pending"})
-
-    monkeypatch.setattr(httpx, "request", request)
-    result = client.update_model_revision(42)
-    assert result["registration_id"] == 43
-    assert calls == [("PATCH", "https://devmid.test/models/42/revision", {})]
+def test_revision_update_cannot_call_an_unsupported_hidden_route(tmp_path):
+    client = ModelManagementClient(
+        base_url="https://devmid.test", config_file=tmp_path / "tokens.json"
+    )
+    with pytest.raises(NotImplementedError, match="public user API"):
+        client.update_model_revision(42)
 
 
 def test_wait_for_scan_understands_awaiting_credentials(
@@ -484,8 +470,9 @@ def test_stream_non_200_raises() -> None:
         base_url=BASE_URL,
     )
 
-    with pytest.raises(Exception, match="unexpected status code 503"):
+    with pytest.raises(httpx.HTTPStatusError) as error:
         list(stream)
+    assert error.value.response.status_code == 503
 
 
 @pytest.mark.parametrize("status_code", [401, 429])
@@ -524,19 +511,13 @@ def test_server_error_retries_then_succeeds() -> None:
 
     client = mock_client(handler)
 
-    response = RegoloClient.static_completions(
-        prompt="retry",
-        model=CHAT_MODEL,
-        api_key="test-key",
-        client=client,
-        base_url=BASE_URL,
-    )
+    response = safe_post(client, f"{BASE_URL}/v1/completions", max_retries=2)
 
-    assert response == "eventual success"
+    assert response.json() == completion_payload("eventual success")
     assert calls == 3
 
 
-def test_server_error_raises_after_retries_exhausted() -> None:
+def test_inference_server_error_is_not_automatically_retried() -> None:
     calls = 0
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -556,7 +537,7 @@ def test_server_error_raises_after_retries_exhausted() -> None:
         )
 
     assert exc_info.value.response.status_code == 500
-    assert calls == 3
+    assert calls == 1
 
 
 def test_timeout_propagates_without_retry() -> None:
@@ -587,7 +568,7 @@ def test_malformed_json_response_raises() -> None:
 
     client = mock_client(handler)
 
-    with pytest.raises(json.JSONDecodeError):
+    with pytest.raises(ValueError, match="non-JSON success data"):
         RegoloClient.static_completions(
             prompt="bad json",
             model=CHAT_MODEL,
@@ -609,7 +590,7 @@ def test_model_not_available_raises_before_request(monkeypatch: pytest.MonkeyPat
     monkeypatch.setattr(
         ModelsHandler,
         "get_models",
-        lambda base_url, api_key, model_info=False: ["known-model"],
+        lambda base_url, api_key, model_info=False, client=None: ["known-model"],
     )
 
     with pytest.raises(RuntimeError, match="Model not found"):
@@ -632,7 +613,9 @@ def test_missing_api_key_raises(monkeypatch: pytest.MonkeyPatch) -> None:
             prompt="missing key",
             model=CHAT_MODEL,
             api_key=None,
-            client=mock_client(lambda request: json_response(request, completion_payload("unused"))),
+            client=mock_client(
+                lambda request: json_response(request, completion_payload("unused"))
+            ),
             base_url=BASE_URL,
         )
 
@@ -688,7 +671,12 @@ def test_completions_preserve_prompt_edge_cases(prompt: str) -> None:
 
     client = mock_client(handler)
 
-    assert RegoloClient.static_completions(prompt, CHAT_MODEL, "test-key", False, client=client, base_url=BASE_URL) == "ok"
+    assert (
+        RegoloClient.static_completions(
+            prompt, CHAT_MODEL, "test-key", False, client=client, base_url=BASE_URL
+        )
+        == "ok"
+    )
     assert seen_prompts == [prompt]
 
 
