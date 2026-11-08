@@ -76,6 +76,11 @@ Use `--only structured_json function_tools` to select workflows. Incomplete or
 truncated replies are failures. Test custom deployment lifecycles separately
 with authorized test accounts and explicitly unload billable resources afterward.
 
+For a focused reranking check, use `--only rerank --max-requests 2`. This makes
+one catalog request and one reranking request. Qwen3 rerankers use their required
+instruction/query/document tags; the check still requires the relevant document
+to rank first.
+
 ## Building
 
 ```bash

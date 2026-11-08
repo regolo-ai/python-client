@@ -31,6 +31,8 @@
 - Added opt-in, server-scoped token persistence with atomic writes, token refresh
   and credential-safe error display.
 - Improved CLI aliases, GPU selection, JSON output and raw audio/SRT/VTT handling.
+- Corrected Qwen3 reranker inputs in the live smoke test and clarified reranking
+  input formats and failure messages.
 - Added `py.typed`, response-mode overloads and clearer nullable response types.
 - Removed unused requests, dotenv and JSON-repair runtime dependencies.
 

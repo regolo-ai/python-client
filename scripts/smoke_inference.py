@@ -57,6 +57,26 @@ def complete_text(reply: dict) -> str:
     return text
 
 
+def check_rerank(client: RegoloClient, model: str) -> None:
+    query = "Which city is in Italy?"
+    documents = ["Rome is in Italy.", "Paris is in France."]
+    if "qwen3-reranker" in model.lower():
+        query = (
+            "<Instruct>: Given a web search query, retrieve relevant passages that answer the query"
+            f"\n<Query>: {query}"
+        )
+        documents = [f"<Document>: {document}" for document in documents]
+
+    results = client.rerank(query, documents, top_n=1)
+    if not isinstance(results, list) or len(results) != 1 or not isinstance(results[0], dict):
+        raise ValueError("Rerank expected exactly one result object")
+    index = results[0].get("index")
+    if type(index) is not int or index != 0:
+        raise ValueError(
+            f"Unexpected rerank ordering: expected document index 0 (Rome), got {index!r}"
+        )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run-paid", action="store_true")
@@ -317,11 +337,7 @@ def main() -> int:
                             if len(data) != 2 or any(not item.get("embedding") for item in data):
                                 raise ValueError("Invalid embedding batch")
                         elif name == "rerank":
-                            data = c.rerank(
-                                "Italy", ["Rome is in Italy.", "Paris is in France."], top_n=1
-                            )
-                            if len(data) != 1 or data[0]["index"] != 0:
-                                raise ValueError("Unexpected demo ranking")
+                            check_rerank(c, str(row.get("model_group") or row.get("id")))
                         elif name == "images":
                             images = c.create_image(
                                 "A plain blue square on white.",

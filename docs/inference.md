@@ -136,6 +136,29 @@ uses the supplied Pydantic model's JSON schema and strict local validation. It
 rejects refusal/truncated responses; its raw response remains in `last_response`
 if local validation fails. No paid repair/retry request is made.
 
+## Reranking
+
+`rerank()` forwards the query and documents unchanged. Some models require a
+specific input format. For `Qwen3-Reranker` models, use instruction, query and
+document tags:
+
+```python
+from regolo import RegoloClient
+
+with RegoloClient(api_key="<KEY>", reranker_model="Qwen3-Reranker-4B") as client:
+    results = client.rerank(
+        "<Instruct>: Given a web search query, retrieve relevant passages that answer the query\n"
+        "<Query>: Which city is in Italy?",
+        ["<Document>: Rome is in Italy.", "<Document>: Paris is in France."],
+        top_n=1,
+    )
+    print(results)
+```
+
+Each result's `index` refers to the document's position in the input list.
+Formatting requirements vary by model; use plain text for models that expect
+plain-text queries and documents. See the [reranking guide](https://docs.regolo.ai/models/families/rerank/).
+
 ## Multimodal inputs and other families
 
 ```python
