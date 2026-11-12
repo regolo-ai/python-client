@@ -38,8 +38,10 @@ from regolo import RegoloClient
 
 with RegoloClient(api_key="<KEY>", chat_model="<MODEL>", request_timeout=90) as client:
     reply = client.run_chat(
-        "Return a JSON greeting", response_format={"type": "json_object"},
-        max_completion_tokens=64, full_output=True,
+        "Return a JSON greeting",
+        response_format={"type": "json_object"},
+        max_completion_tokens=64,
+        full_output=True,
     )
     print(reply.get("usage"))
 ```
@@ -60,8 +62,10 @@ has no model-list endpoint:
 
 ```python
 client = RegoloClient(
-    api_key="<INFERENCE_KEY>", chat_model="<EXPLICIT_SERVING_MODEL_ID>",
-    alternative_url="https://api.regolo.ai/custom-model/v1", check_models=False,
+    api_key="<INFERENCE_KEY>",
+    chat_model="<EXPLICIT_SERVING_MODEL_ID>",
+    alternative_url="https://api.regolo.ai/custom-model/v1",
+    check_models=False,
 )
 ```
 
@@ -80,8 +84,10 @@ client.add_message("system", "Answer concisely")
 client.run_chat("First question")
 client.conversation.save("conversation.json")  # Explicit, atomic, owner-only JSON.
 client.instance.overwrite_conversation(Conversation.load("conversation.json"))
-client.conversation.trim(max_turns=10)  # Keeps initial system/developer messages and whole tool exchanges.
-branch = client.fork()                # Independent history and owned transport.
+client.conversation.trim(
+    max_turns=10
+)  # Keeps initial system/developer messages and whole tool exchanges.
+branch = client.fork()  # Independent history and owned transport.
 branch.close()
 ```
 
@@ -111,12 +117,17 @@ its original transport; `fork()` is the independent alternative.
 ```python
 from regolo import FunctionTool
 
+
 def weather(city: str) -> dict[str, str]:
     """Get demo weather for a city."""
     return {"city": city, "weather": "sunny"}
 
+
 reply = client.run_tools(
-    "Use weather for Rome", [FunctionTool(weather)], max_rounds=3, max_calls=4,
+    "Use weather for Rome",
+    [FunctionTool(weather)],
+    max_rounds=3,
+    max_calls=4,
 )
 ```
 

@@ -149,12 +149,18 @@ from regolo import ModelManagementClient
 with ModelManagementClient(token="<TOKEN>", public_openapi="public-openapi.json") as models:
     # Values/config field names are resolved against this server's public schema.
     models.load_model_for_inference(
-        "my-model", "<GPU>", engine="sglang", engine_config={"context_length": 4096},
+        "my-model",
+        "<GPU>",
+        engine="sglang",
+        engine_config={"context_length": 4096},
     )
     # Use only tuning keys actually present in the current public export.
     # Example shape; n_ctx must be declared by your server's LlamaCpp config.
     models.load_model_for_inference(
-        "my-gguf", "<GPU>", engine="llamacpp", engine_config={"n_ctx": 4096},
+        "my-gguf",
+        "<GPU>",
+        engine="llamacpp",
+        engine_config={"n_ctx": 4096},
     )
 ```
 

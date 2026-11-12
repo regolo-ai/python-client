@@ -56,17 +56,21 @@ options work across families: `dimensions`/`encoding_format` for embeddings,
 from pydantic import BaseModel, ConfigDict
 from regolo import FunctionTool
 
+
 def add(a: int, b: int) -> int:
     """Add two integers."""
     return a + b
+
 
 # Only this explicitly registered callable can run. Arguments are validated
 # before any function in the returned batch executes. No automatic tool retry.
 reply = client.run_tools("Use add for 2 plus 3", [FunctionTool(add)], max_rounds=3)
 
+
 class City(BaseModel):
     model_config = ConfigDict(extra="forbid")
     name: str
+
 
 city = client.run_structured("Return the name of Italy's capital", City)
 print(city.name)
@@ -91,10 +95,13 @@ with ModelManagementClient(token="<KEYCLOAK_ACCESS_TOKEN>") as models:
     models.register_model("my-model", url="organization/model", revision="release-v3")
     print(models.get_model("my-model"))  # Scan, revision, capacity, trust and owner actions.
     loaded = models.load_and_wait(
-        "my-model", gpu="<AVAILABLE_GPU_INSTANCE_TYPE>",
+        "my-model",
+        gpu="<AVAILABLE_GPU_INSTANCE_TYPE>",
         gpu_plan_config=GPUPlanConfig(
-            min_replicas=0, max_replicas=3,
-            target_requests=250, scale_down_delay_seconds=45,
+            min_replicas=0,
+            max_replicas=3,
+            target_requests=250,
+            scale_down_delay_seconds=45,
         ),
         vllm_config={"max_model_len": 4096},
     )
@@ -102,7 +109,10 @@ with ModelManagementClient(token="<KEYCLOAK_ACCESS_TOKEN>") as models:
     print(models.get_session_details(session_id, include_scaling=True))
     print(models.get_dashboard_snapshot(include_scaling=True))
     for session in models.iter_inference_sessions(
-        include_status=True, include_error=True, include_billing=True, include_scaling=True,
+        include_status=True,
+        include_error=True,
+        include_billing=True,
+        include_scaling=True,
     ):
         print(session)
     models.export_sessions_json("history.json", include_billing=True, include_scaling=True)
@@ -120,9 +130,13 @@ server's public API. For schema-based engine configuration and paginated scaling
 history, provide a public OpenAPI export or let the client fetch `/openapi.json`:
 
 ```python
-with ModelManagementClient(token="<KEYCLOAK_ACCESS_TOKEN>", public_openapi="public-openapi.json") as models:
+with ModelManagementClient(
+    token="<KEYCLOAK_ACCESS_TOKEN>", public_openapi="public-openapi.json"
+) as models:
     models.load_model_for_inference(
-        "my-model", "<GPU>", engine="sglang",
+        "my-model",
+        "<GPU>",
+        engine="sglang",
         engine_config={"context_length": 4096},
     )
     page = models.get_scaling_history(123, limit=100)
