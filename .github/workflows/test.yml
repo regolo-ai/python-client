@@ -1,5 +1,15 @@
 name: SDK checks
-on: [push, pull_request]
+
+on:
+  push:
+    branches:
+      - '**'        # Runs on any branch push
+  pull_request:
+    branches:
+      - '**'        # Runs on PRs as well
+  workflow_dispatch: # Allows manual run
+
+
 permissions:
   contents: read
 jobs:
